@@ -2,7 +2,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Natsume.LiteDB;
-using Natsume.NetCord;
+using Natsume.NetCord.NatsumeAI;
+using Natsume.NetCord.NatsumeNetCordModules;
 using Natsume.OpenAI;
 using NetCord;
 using NetCord.Hosting.Gateway;
@@ -28,14 +29,15 @@ builder.Services
     .AddGatewayEventHandler<NatsumeListeningModule>()
     .AddApplicationCommands<ApplicationCommandInteraction, ApplicationCommandContext>()
     .AddSingleton<IOpenAiService, OpenAiService>(_ => new OpenAiService(openAiApiKey))
-    .AddSingleton<LiteDbService>(_ => new LiteDbService(liteDbConnection));
+    .AddSingleton<LiteDbService>(_ => new LiteDbService(liteDbConnection))
+    .AddSingleton<NatsumeAi>();
 
 var host = builder
     .Build()
     .UseGatewayEventHandlers()
     .AddApplicationCommandModule<NatsumeCommandModule>()
-    .AddApplicationCommandModule<HqSlashCommandsModule>()
-    .AddApplicationCommandModule<HqSlashCommandsModule.SubscribersModule>()
-    .AddApplicationCommandModule<HqUserCommandsModule>();
+    .AddApplicationCommandModule<NatsumeHqSlashCommandModule>()
+    .AddApplicationCommandModule<NatsumeHqSlashCommandModule.SubscribersModule>()
+    .AddApplicationCommandModule<NatsumeHqUserCommandModule>();
 
 await host.RunAsync();

@@ -15,49 +15,60 @@ public class OpenAiService(string apiKey) : IOpenAiService
             _ => false
         };
     }
-    
+
     public ChatClient GetChatClient(string model)
     {
         if (!IsValidModel(model)) throw new ArgumentException("Invalid model");
         return new ChatClient(model: model, apiKey: apiKey);
     }
 
-    public async Task<ChatCompletion> GetChatCompletion(string model, string prompt, string messageContent)
+    public async Task<ChatCompletion> GetChatCompletion(
+        string model,
+        string prompt,
+        string messageContent
+    )
     {
         if (!IsValidModel(model)) throw new ArgumentException("Invalid model");
         var client = GetChatClient(model);
         var promptMessage = ChatMessage.CreateSystemMessage(prompt);
         var userMessage = ChatMessage.CreateUserMessage(messageContent);
-        
+
         ChatCompletion completion = await client.CompleteChatAsync(promptMessage, userMessage);
-    
+
         return completion;
     }
 
-    public async Task<ChatCompletion> GetChatCompletion(string model, params IEnumerable<(ChatMessageType type, string content)> messages)
+    private static ChatMessage CreateChatMessage((ChatMessageType type, string content) message)
+    {
+        ChatMessage chatMessage = message.type switch
+        {
+            ChatMessageType.System => ChatMessage.CreateSystemMessage(message.content),
+            ChatMessageType.User => ChatMessage.CreateUserMessage(message.content),
+            ChatMessageType.Assistant => ChatMessage.CreateAssistantMessage(message.content),
+            _ => throw new ArgumentException("Invalid message type")
+        };
+
+        return chatMessage;
+    }
+
+    public async Task<ChatCompletion> GetChatCompletion(
+        string model,
+        params IEnumerable<(ChatMessageType type, string content)> messages
+    )
     {
         if (!IsValidModel(model)) throw new ArgumentException("Invalid model");
         var client = GetChatClient(model);
         List<ChatMessage> chatMessages = [];
-        
-        foreach (var message in messages)
-        {
-            ChatMessage chatMessage = message.type switch
-            {
-                ChatMessageType.System => ChatMessage.CreateSystemMessage(message.content),
-                ChatMessageType.User => ChatMessage.CreateUserMessage(message.content),
-                ChatMessageType.Assistant => ChatMessage.CreateAssistantMessage(message.content),
-                _ => throw new ArgumentException("Invalid message type")
-            };
-            
-            chatMessages.Add(chatMessage);
-        }
-        
+        chatMessages.AddRange(messages.Select(CreateChatMessage));
+
         ChatCompletion completion = await client.CompleteChatAsync(chatMessages);
         return completion;
     }
-    
-    public decimal CalculateCompletionCost(string model, ChatCompletion completion)
+
+    public decimal CalculateCompletionCost(
+        string model,
+        ChatCompletion completion
+    )
     {
         var (inputTokenCostPerMillion, outputTokenCostPerMillion) = model switch
         {
@@ -67,9 +78,8 @@ public class OpenAiService(string apiKey) : IOpenAiService
             "o1-mini" => (3M, 12M),
             _ => throw new ArgumentException("Invalid model")
         };
-        
-        return completion.Usage.InputTokenCount * inputTokenCostPerMillion / 1000000 
+
+        return completion.Usage.InputTokenCount * inputTokenCostPerMillion / 1000000
                + completion.Usage.OutputTokenCount * outputTokenCostPerMillion / 1000000;
     }
-
 }

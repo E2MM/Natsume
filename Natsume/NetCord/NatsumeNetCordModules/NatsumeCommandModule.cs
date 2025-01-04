@@ -1,12 +1,10 @@
-using Natsume.OpenAI;
-using Natsume.LiteDB;
+using Natsume.NetCord.NatsumeAI;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
-namespace Natsume.NetCord;
+namespace Natsume.NetCord.NatsumeNetCordModules;
 
-public class NatsumeCommandModule(IOpenAiService openAiService, LiteDbService liteDbService)
-    : NatsumeCoreCommandModule(openAiService, liteDbService)
+public class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModule(natsumeAi)
 {
     [SlashCommand(name: "chat", description: "Chatta con Natsume-san!")]
     public async Task Chat(
@@ -15,7 +13,7 @@ public class NatsumeCommandModule(IOpenAiService openAiService, LiteDbService li
     {
         await ExecuteSubscribedNatsumeCommandAsync(NatsumeLlmModel.Gpt4O, message);
     }
-    
+
     [SlashCommand(name: "aiutami", description: "Chiedi l'esperta consulenza tecnica di Natsume-san!")]
     public async Task HelpMe(
         [SlashCommandParameter(Name = "llm", Description = "Scegli il modello LLM da usare")]

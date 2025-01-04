@@ -1,15 +1,15 @@
 using Natsume.LiteDB;
-using Natsume.OpenAI;
+using Natsume.NetCord.NatsumeAI;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
-namespace Natsume.NetCord;
+namespace Natsume.NetCord.NatsumeNetCordModules;
 
-public class HqUserCommandsModule(IOpenAiService openAiService, LiteDbService liteDbService)
-    : NatsumeCoreCommandModule(openAiService, liteDbService)
+public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi natsumeAi)
+    : NatsumeAiCommandModule(natsumeAi)
 {
-    private readonly LiteDbService _liteDbService = liteDbService;
+    private readonly NatsumeAi _natsumeAi = natsumeAi;
 
     [UserCommand(name: "Presentami a Natsume-san!",
         DefaultGuildUserPermissions = Permissions.Administrator,
@@ -18,7 +18,7 @@ public class HqUserCommandsModule(IOpenAiService openAiService, LiteDbService li
     {
         await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral | MessageFlags.Loading));
 
-        var subscriber = _liteDbService.GetSubscriberById(user.Id);
+        var subscriber = liteDbService.GetSubscriberById(user.Id);
         if (subscriber?.ActiveSubscription is true)
         {
             await ModifyResponseAsync(m => m
@@ -31,7 +31,7 @@ public class HqUserCommandsModule(IOpenAiService openAiService, LiteDbService li
         if (subscriber?.ActiveSubscription is false)
         {
             subscriber.ActiveSubscription = true;
-            _liteDbService.UpdateSubscriber(subscriber);
+            liteDbService.UpdateSubscriber(subscriber);
 
             var welcomeBackPrompt =
                 $"""
@@ -42,7 +42,11 @@ public class HqUserCommandsModule(IOpenAiService openAiService, LiteDbService li
                  programmazione a tua scelta!
                  """;
 
-            var welcomeBack = await GetNatsumeCompletionTextAsync(NatsumeLlmModel.Gpt4O, welcomeBackPrompt);
+            var welcomeBack = await _natsumeAi.GetCompletionTextAsync(
+                NatsumeLlmModel.Gpt4O,
+                SubscriberName,
+                welcomeBackPrompt
+            );
 
             await dmChannel.SendMessageAsync(new MessageProperties()
                 .WithContent(welcomeBack));
@@ -65,9 +69,9 @@ public class HqUserCommandsModule(IOpenAiService openAiService, LiteDbService li
             InputTokensConsumed = 0,
             OutputTokensConsumed = 0
         };
-        
-        _liteDbService.AddSubscriber(newSubscriber);
-        
+
+        liteDbService.AddSubscriber(newSubscriber);
+
         var welcomePrompt =
             $"""
              Scrivi un breve messaggio in chat in cui ti presenti a {newSubscriber.Username},
@@ -77,8 +81,12 @@ public class HqUserCommandsModule(IOpenAiService openAiService, LiteDbService li
              Approfittane per chiedere a {newSubscriber.Username} se ha mai studiato una tecnologia di programmazione 
              a tua scelta!
              """;
-        
-        var welcome = await GetNatsumeCompletionTextAsync(NatsumeLlmModel.Gpt4O, welcomePrompt);
+
+        var welcome = await _natsumeAi.GetCompletionTextAsync(
+            NatsumeLlmModel.Gpt4O,
+            SubscriberName,
+            welcomePrompt
+        );
 
         await dmChannel.SendMessageAsync(new MessageProperties()
             .WithContent(welcome));
@@ -94,7 +102,7 @@ public class HqUserCommandsModule(IOpenAiService openAiService, LiteDbService li
     {
         await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral | MessageFlags.Loading));
 
-        var subscriber = _liteDbService.GetSubscriberById(user.Id);
+        var subscriber = liteDbService.GetSubscriberById(user.Id);
         if (subscriber is null)
         {
             await ModifyResponseAsync(m => m
@@ -103,8 +111,8 @@ public class HqUserCommandsModule(IOpenAiService openAiService, LiteDbService li
         }
 
         subscriber.ActiveSubscription = false;
-        _liteDbService.UpdateSubscriber(subscriber);
-        
+        liteDbService.UpdateSubscriber(subscriber);
+
         var goodbyePrompt =
             $"""
              Scrivi un breve messaggio in chat di addio a {subscriber.Username}!
@@ -112,8 +120,12 @@ public class HqUserCommandsModule(IOpenAiService openAiService, LiteDbService li
              Ringrazia {subscriber.Username} per tutti i messaggi che vi siete scritti.
              Augura a {subscriber.Username} buona fortuna e dì che speri vi incontrerete ancora
              """;
-        
-        var goodbye = await GetNatsumeCompletionTextAsync(NatsumeLlmModel.Gpt4O, goodbyePrompt);
+
+        var goodbye = await _natsumeAi.GetCompletionTextAsync(
+            NatsumeLlmModel.Gpt4O,
+            SubscriberName,
+            goodbyePrompt
+        );
 
         var dmChannel = await user.GetDMChannelAsync();
         await dmChannel.SendMessageAsync(new MessageProperties()
@@ -130,7 +142,7 @@ public class HqUserCommandsModule(IOpenAiService openAiService, LiteDbService li
     {
         await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral | MessageFlags.Loading));
 
-        var subscriber = _liteDbService.GetSubscriberById(user.Id);
+        var subscriber = liteDbService.GetSubscriberById(user.Id);
         if (subscriber is null)
         {
             await ModifyResponseAsync(m => m
@@ -142,15 +154,19 @@ public class HqUserCommandsModule(IOpenAiService openAiService, LiteDbService li
         subscriber.CurrentBalance += 1M;
         subscriber.TotalBalanceCharged += 1M;
         subscriber.LastBalanceCharge = DateTime.Now;
-        _liteDbService.UpdateSubscriber(subscriber);
-        
+        liteDbService.UpdateSubscriber(subscriber);
+
         var thankYouPrompt =
             $"""
              Scrivi un breve messaggio in chat a {subscriber.Username} per ringraziare del regalino!
              E' super kawaiii!
              """;
-        
-        var thankYou = await GetNatsumeCompletionTextAsync(NatsumeLlmModel.Gpt4O, thankYouPrompt);
+
+        var thankYou = await _natsumeAi.GetCompletionTextAsync(
+            NatsumeLlmModel.Gpt4O,
+            SubscriberName,
+            thankYouPrompt
+        );
 
         var dmChannel = await user.GetDMChannelAsync();
         await dmChannel.SendMessageAsync(new MessageProperties()
