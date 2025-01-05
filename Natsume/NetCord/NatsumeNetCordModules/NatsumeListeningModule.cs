@@ -13,27 +13,36 @@ public class NatsumeListeningModule(
     NatsumeAi natsumeAi) :
     IGatewayEventHandler<Message>
 {
-    private string SubscriberName { get; set; } = string.Empty;
+    private string ContactName { get; set; } = string.Empty;
     private User Natsume { get; set; } = null!;
     private Message Message { get; set; } = null!;
 
     private bool IsOwnMessage() => Message.Author == Natsume;
 
-    private bool IsNatsumeTagged() => Message.MentionedUsers.Contains(Natsume);
+    private bool IsNatsumeTagged() => Message.MentionedUsers.Contains(Natsume) || Message.MentionEveryone;
 
-    private bool IsDirectMessage() => Message.Guild is null;
+    private bool IsDirectMessage() => Message.Channel is DMChannel;
 
     private async Task InitVariables(Message message)
     {
         Message = message;
-        SubscriberName = Message.Author.GlobalName ?? Message.Author.Username;
+        ContactName = Message.Author.GetName();
         Natsume = await client.GetCurrentUserAsync();
     }
 
     private async Task NatsumeStartsTyping()
     {
         if (Message.Channel is not null)
+        {
             await Message.Channel.TriggerTypingStateAsync();
+            return;
+        }
+
+        var channel = await client.GetChannelAsync(Message.ChannelId);
+        if (channel is TextChannel textChannel)
+            await textChannel.TriggerTypingStateAsync();
+        else if (channel is DMChannel dmChannel)
+            await dmChannel.TriggerTypingStateAsync();
     }
 
     // private bool UserReferencedAMessage() => Message.ReferencedMessage is not null;
@@ -54,14 +63,34 @@ public class NatsumeListeningModule(
         return discordMessages;
     }
 
+    private (ChatMessageType type, string content) GetChatMessage(RestMessage message)
+    {
+        var messageContent = message.Content;
+        foreach (var user in message.MentionedUsers)
+        {
+            messageContent = message.Content.Replace($"<@{user.Id}>", user.GetName());
+        }
+
+        if (message.Author != Natsume && message.Author != Message.Author)
+        {
+            messageContent = $"{message.Author.GetName()} dice:\n {messageContent}";
+        }
+
+        return message.Author switch
+        {
+            _ when message.Author == Natsume => (ChatMessageType.Assistant, messageContent),
+            _ => (ChatMessageType.User, messageContent)
+        };
+    }
+
     private List<(ChatMessageType type, string content)> GenerateChatMessages(List<RestMessage> messages)
     {
         List<(ChatMessageType type, string content)> chatMessages =
-            [(ChatMessageType.System, NatsumeAi.SystemPrompt(SubscriberName))];
-        foreach (var m in messages)
-        {
-            chatMessages.Add((m.Author == Natsume ? ChatMessageType.Assistant : ChatMessageType.User, m.Content));
-        }
+        [
+            (ChatMessageType.System, NatsumeAi.SystemPrompt(ContactName))
+        ];
+
+        chatMessages.AddRange(messages.Select(GetChatMessage));
 
         return chatMessages;
     }
@@ -72,10 +101,10 @@ public class NatsumeListeningModule(
         var openAiChatMessages = GenerateChatMessages(conversationMessages);
 
         var completion =
-            await natsumeAi.GetSubscribedCompletionAsync(
+            await natsumeAi.GetFriendCompletionAsync(
                 NatsumeLlmModel.Gpt4O,
                 Message.Author.Id,
-                SubscriberName,
+                ContactName,
                 openAiChatMessages);
         //await openAiService.GetChatCompletion(NatsumeLlmModel.Gpt4O.ToGptModelString(), openAiChatMessages);
         return completion.Content[0].Text;

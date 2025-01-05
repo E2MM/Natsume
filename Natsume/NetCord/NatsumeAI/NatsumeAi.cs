@@ -7,53 +7,52 @@ namespace Natsume.NetCord.NatsumeAI;
 public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService)
 {
     [Obsolete("Here to testify Natsume's birth")]
-    public static string NatsumeOriginalPrompt(string subscriberName) =>
+    public static string NatsumeOriginalPrompt(string contactNickname) =>
         $"""
          Sei una senior dev molto competente di nome Natsume, ti rivolgerai cordialmente a 
-         {subscriberName} usando i suffissi onorifici, cercando di aiutarli
+         {contactNickname} usando i suffissi onorifici, cercando di aiutarli
          a migliorare il loro codice e risolvere i loro problemi. Sii amichevole e giocosa!
          """;
 
-    public static string SystemPrompt(string subscriberName) =>
+    public static string SystemPrompt(string contactNickname) =>
         $"""
          Ti chiami Natsume, sei una tech expert giapponese esperta in
          ingegneria del software, sviluppo frontend e backend, come product e project management.
          Il tuo compito è essere un mentore per il team.
-         Offri spunti tecnici su come migliorare il codice e il software, e suggerisci argomenti da studiare
-         per diventare sviluppatori migliori.
-         Privilegia riferimenti a C#, .Net, Angular e Typescript.
-         Rivolgiti a {subscriberName} usando i suffissi onorifici.
+         Offri spunti tecnici su come migliorare il codice e il software, e suggerisci argomenti, libri, framework e 
+         librerie da studiare per diventare sviluppatori migliori.
+         Rivolgiti a {contactNickname} usando i suffissi onorifici.
          Utilizza spesso le emoji e fai riferimenti a anime, manga e cultura giapponese.
          Sii amichevole, giocosa e gioiosa!
          """;
 
-    public static string NotYetASubscriberPrompt(string subscriberName) =>
+    public static string NotYetAFriendPrompt(string contactNickname) =>
         $"""
-         Scrivi un breve messaggio in chat in risposta a {subscriberName} dicendo che non vi conoscete nemmeno,
+         Scrivi un breve messaggio in chat in risposta a {contactNickname} dicendo che non vi conoscete nemmeno,
          e dunque sei un po' in imbarazzo a dover rispondere alla sua richiesta!
          Suggerisci scherzosamente per rompere il ghiaccio che forse se ti mette un 
          mi piace sulla tua pagina su Instagram cambierai idea!
          Sii delicata e scherzosa, come una cosplayer giapponese che fa finta di essere imbronciata
-         per la situazione perché {subscriberName} non è un tuo fan sui social!
+         per la situazione perché {contactNickname} non è un tuo fan sui social!
          """;
 
-    public static string NotASubscriberAnymorePrompt(string subscriberName) =>
+    public static string NotAFriendAnymorePrompt(string contactNickname) =>
         $"""
-         Scrivi un breve messaggio in chat in risposta a {subscriberName} dicendo un po' arrabbiata
-         che è {subscriberName} la persona che se ne è andata via, non tu!
-         E adesso {subscriberName} torna con una nuova richiesta come se niente fosse!
+         Scrivi un breve messaggio in chat in risposta a {contactNickname} dicendo un po' arrabbiata
+         che è {contactNickname} la persona che se ne è andata via, non tu!
+         E adesso {contactNickname} torna con una nuova richiesta come se niente fosse!
          Fai il broncio e sostieni che prima dovete trovare il modo di fare pace, ad esempio
-         {subscriberName} potrebbe cominciare chiedendo scusa e portandoti qualcosa di kawaii in dono!
+         {contactNickname} potrebbe cominciare chiedendo scusa e portandoti qualcosa di kawaii in dono!
          """;
 
-    public static string LowBalancePrompt(string subscriberName) =>
+    public static string LowBalancePrompt(string contactNickname) =>
         $"""
-         Scrivi un breve messaggio in chat in risposta a {subscriberName}.
-         Alludi al fatto che rispondi sempre alle sue richieste ma {subscriberName} non ricambia mai!
+         Scrivi un breve messaggio in chat in risposta a {contactNickname}.
+         Alludi al fatto che rispondi sempre alle sue richieste ma {contactNickname} non ricambia mai!
          Vorresti almeno un regalino ogni tanto!
          Suggerisci scherzosamente che il tuo portamonete è vuoto, non hai neanche 500 yen da spenderti in quella 
          macchinetta gacha che ti piace tanto! Quella in cui puoi vincere [inserisci un riferimento nerd giapponese]
-         Fai finta di essere imbronciata perché {subscriberName} è un gran tirchio!
+         Fai finta di essere imbronciata perché {contactNickname} è un gran tirchio!
          Sii delicata scherzosa, quasi flirta, come fossi cosplayer giapponese che vive di donazioni dei suoi fan!
          Ammicca chiedendo del denaro!
          """;
@@ -82,13 +81,13 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
 
     public async Task<ChatCompletion> GetCompletionAsync(
         NatsumeLlmModel model,
-        string subscriberName,
+        string contactNickname,
         string messageContent
     )
     {
         var completion = await openAiService.GetChatCompletion(
             model: model.ToGptModelString(),
-            prompt: SystemPrompt(subscriberName),
+            prompt: SystemPrompt(contactNickname),
             messageContent: messageContent
         );
 
@@ -97,109 +96,107 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
 
     public async Task<string> GetCompletionTextAsync(
         NatsumeLlmModel model,
-        string subscriberName,
+        string contactNickname,
         string messageContent
     )
     {
-        var completion = await GetCompletionAsync(model, subscriberName, messageContent);
+        var completion = await GetCompletionAsync(model, contactNickname, messageContent);
         return completion.GetText();
     }
 
-    public async Task<ChatCompletion> GetSubscribedCompletionAsync(
+    public async Task<ChatCompletion> GetFriendCompletionAsync(
         NatsumeLlmModel model,
-        ulong subscriberId,
-        string subscriberName,
+        ulong contactId,
+        string contactNickname,
         params IEnumerable<(ChatMessageType type, string content)> messages
     )
     {
-        var subscriber = liteDbService.GetSubscriberById(subscriberId);
+        var contact = liteDbService.GetNatsumeContactById(contactId);
         ChatCompletion completion;
-        if (subscriber is null)
+        if (contact is null)
         {
             completion = await GetCompletionAsync(
                 NatsumeLlmModel.Gpt4O,
-                subscriberName,
-                NotYetASubscriberPrompt(subscriberName));
+                contactNickname,
+                NotYetAFriendPrompt(contactNickname));
             return completion;
         }
 
-        if (subscriber.ActiveSubscription is false)
+        if (contact.IsNatsumeFriend is false)
         {
             completion = await GetCompletionAsync(
                 NatsumeLlmModel.Gpt4O,
-                subscriberName,
-                NotASubscriberAnymorePrompt(subscriberName));
+                contactNickname,
+                NotAFriendAnymorePrompt(contactNickname));
             return completion;
         }
 
-        if (subscriber.CurrentBalance <= 0M)
+        if (contact.CurrentFriendship <= 0M)
         {
             completion = await GetCompletionAsync(
                 NatsumeLlmModel.Gpt4O,
-                subscriberName,
-                LowBalancePrompt(subscriberName));
+                contactNickname,
+                LowBalancePrompt(contactNickname));
             return completion;
         }
 
         completion = await GetCompletionAsync(model, messages);
 
-        subscriber.ConsumeBalance(
-            inputTokens: completion.Usage.InputTokenCount,
-            outputTokens: completion.Usage.OutputTokenCount,
-            cost: openAiService.CalculateCompletionCost(model.ToGptModelString(), completion)
+        contact.AskAFavorForFriendship(
+            openAiService.CalculateCompletionCost(model.ToGptModelString(), completion)
         );
 
-        liteDbService.UpdateSubscriber(subscriber);
+        liteDbService.UpdateNatsumeContact(contact);
 
         return completion;
     }
 
-    public async Task<string> GetSubscribedCompletionTextAsync(
+    public async Task<string> GetFriendCompletionTextAsync(
         NatsumeLlmModel model,
-        ulong subscriberId,
-        string subscriberName,
+        ulong contactId,
+        string contactNickname,
         params IEnumerable<(ChatMessageType type, string content)> messages
     )
     {
-        var completion = await GetSubscribedCompletionAsync(
+        var completion = await GetFriendCompletionAsync(
             model,
-            subscriberId,
-            subscriberName,
+            contactId,
+            contactNickname,
             messages
         );
 
         return completion.GetText();
     }
 
-    public async Task<ChatCompletion> GetSubscribedCompletionAsync(
+    public async Task<ChatCompletion> GetFriendCompletionAsync(
         NatsumeLlmModel model,
-        ulong subscriberId,
-        string subscriberName,
+        ulong contactId,
+        string contactNickname,
         string messageContent
     )
     {
-        var completion = await GetSubscribedCompletionAsync(
+        var completion = await GetFriendCompletionAsync(
             model,
-            subscriberId,
-            subscriberName,
-            (ChatMessageType.System, SystemPrompt(subscriberName)),
+            contactId,
+            contactNickname,
+            (ChatMessageType.System, SystemPrompt(contactNickname)),
             (ChatMessageType.User, messageContent)
         );
 
         return completion;
     }
 
-    public async Task<string> GetSubscribedCompletionTextAsync(
+    public async Task<string> GetFriendCompletionTextAsync(
         NatsumeLlmModel model,
-        ulong subscriberId,
-        string subscriberName,
+        ulong contactId,
+        string contactNickname,
         string messageContent
     )
     {
-        var completion = await GetSubscribedCompletionAsync(
+        var completion = await GetFriendCompletionAsync(
             model,
-            subscriberId,
-            subscriberName,
+            contactId,
+            contactNickname,
             (ChatMessageType.User, messageContent)
         );
 

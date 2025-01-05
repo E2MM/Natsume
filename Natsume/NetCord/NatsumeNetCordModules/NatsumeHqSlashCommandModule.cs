@@ -11,33 +11,40 @@ namespace Natsume.NetCord.NatsumeNetCordModules;
     Contexts = [InteractionContextType.Guild, InteractionContextType.BotDMChannel, InteractionContextType.DMChannel])]
 public class NatsumeHqSlashCommandModule : ApplicationCommandModule<ApplicationCommandContext>
 {
-    [SubSlashCommand("subscribers", "Subscribers commands")]
-    public class SubscribersModule(LiteDbService liteDbService) : ApplicationCommandModule<ApplicationCommandContext>
+    [SubSlashCommand("contacts", "Contacts commands")]
+    public class NatsumeContactsModule(LiteDbService liteDbService)
+        : ApplicationCommandModule<ApplicationCommandContext>
     {
-        [SubSlashCommand(name: "list", description: "Elenca tutti i conoscenti di Natsume-san")]
-        public async Task ListSubscribers()
+        [SubSlashCommand(name: "list", description: "Elenca tutti i contatti di Natsume-san")]
+        public async Task ListAllContacts()
         {
             await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral));
             var sb = new StringBuilder(1024);
 
-            foreach (var s in liteDbService.GetSubscribers().OrderByDescending(x => x.TotalInvocations))
+            foreach (var c in liteDbService.GetAllNatsumeContacts().OrderByDescending(x => x.MaximumFriendship))
             {
-                var status = s switch
+                var status = c switch
                 {
-                    { ActiveSubscription: false } => "💔",
-                    _ when s.LastInvocation >= DateTime.Now.AddDays(-2) => "💝",
-                    _ when s.LastInvocation >= DateTime.Now.AddDays(-5) => "💖",
-                    _ when s.LastInvocation >= DateTime.Now.AddDays(-12) => "🤍",
-                    _ when s.LastInvocation >= DateTime.Now.AddDays(-31) => "❤️‍🩹",
+                    { IsNatsumeFriend: false } => "💔",
+                    _ when c.LastMessageOn >= DateTime.Now.AddDays(-2) => "💝",
+                    _ when c.LastMessageOn >= DateTime.Now.AddDays(-5) => "💖",
+                    _ when c.LastMessageOn >= DateTime.Now.AddDays(-12) => "🤍",
+                    _ when c.LastMessageOn >= DateTime.Now.AddDays(-31) => "❤️‍🩹",
                     _ => "💜"
                 };
 
-                sb.AppendLine($"{status}\t #️⃣ {s.TotalInvocations}\t 🌟 {100 * s.CurrentBalance:N2}\t 🆔 {s.Username}");
+                sb.Append($"🆔 {c.Nickname}\t");
+                sb.Append($"{status}\t");
+                sb.Append($"🌟 {100 * c.CurrentFriendship:N2}/{100 * c.MaximumFriendship:N2}\t");
+                sb.Append("( ");
+                sb.Append($"💬 {100 * c.MessageFriendship:N2}\t ⌛ {100 * c.TimeFriendship:N2}\t 🏆 {100 * c.ActivityFriendship:N2}");
+                sb.Append(" )\t");
+                sb.Append($"#️⃣{c.MessageCount}");
+                sb.Append('\n');
             }
 
             var response = sb.ToString();
             await ModifyResponseAsync(m => m.WithContent(response));
         }
-        
     }
 }

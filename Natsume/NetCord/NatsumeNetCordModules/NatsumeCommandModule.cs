@@ -11,7 +11,7 @@ public class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModule(
         [SlashCommandParameter(Name = "messaggio", Description = "Scrivi il tuo messaggio a Natsume-san")]
         string message)
     {
-        await ExecuteSubscribedNatsumeCommandAsync(NatsumeLlmModel.Gpt4O, message);
+        await ExecuteFriendNatsumeCommandAsync(NatsumeLlmModel.Gpt4O, message);
     }
 
     [SlashCommand(name: "aiutami", description: "Chiedi l'esperta consulenza tecnica di Natsume-san!")]
@@ -27,7 +27,7 @@ public class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModule(
              {request}
              """;
 
-        await ExecuteSubscribedNatsumeCommandAsync(model, messageContent);
+        await ExecuteFriendNatsumeCommandAsync(model, messageContent);
     }
 
     [MessageCommand(name: "Natsume-san, non ho capito!")]
@@ -39,7 +39,7 @@ public class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModule(
              {restMessage.Content}
              """;
 
-        await ExecuteSubscribedNatsumeCommandAsync(NatsumeLlmModel.Gpt4O, messageContent);
+        await ExecuteFriendNatsumeCommandAsync(NatsumeLlmModel.Gpt4O, messageContent);
     }
 
     [MessageCommand(name: "Natsume-san, cosa ne pensi?")]
@@ -51,6 +51,6 @@ public class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModule(
              {restMessage.Content}
              """;
 
-        await ExecuteSubscribedNatsumeCommandAsync(NatsumeLlmModel.Gpt4O, messageContent);
+        await ExecuteFriendNatsumeCommandAsync(NatsumeLlmModel.Gpt4O, messageContent);
     }
 }

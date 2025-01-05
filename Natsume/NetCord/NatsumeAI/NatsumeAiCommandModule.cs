@@ -5,23 +5,23 @@ namespace Natsume.NetCord.NatsumeAI;
 
 public class NatsumeAiCommandModule(NatsumeAi natsumeAi) : ApplicationCommandModule<ApplicationCommandContext>
 {
-    public string SubscriberName => Context.User.GlobalName ?? Context.User.Username;
+    public string ContactNickname => Context.User.GlobalName ?? Context.User.Username;
 
     protected async Task ExecuteNatsumeCommandAsync(NatsumeLlmModel model, string request)
     {
         await RespondAsync(InteractionCallback.DeferredMessage());
-        var response = await natsumeAi.GetCompletionTextAsync(model, SubscriberName, request);
+        var response = await natsumeAi.GetCompletionTextAsync(model, ContactNickname, request);
         await ModifyResponseAsync(m => m.WithContent(response));
     }
 
-    protected async Task ExecuteSubscribedNatsumeCommandAsync(NatsumeLlmModel model, string request)
+    protected async Task ExecuteFriendNatsumeCommandAsync(NatsumeLlmModel model, string request)
     {
         await RespondAsync(InteractionCallback.DeferredMessage());
 
-        var completionText = await natsumeAi.GetSubscribedCompletionTextAsync(
+        var completionText = await natsumeAi.GetFriendCompletionTextAsync(
             model,
             Context.User.Id,
-            SubscriberName,
+            ContactNickname,
             request
         );
 

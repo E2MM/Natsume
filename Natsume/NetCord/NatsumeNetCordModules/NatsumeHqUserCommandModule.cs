@@ -14,37 +14,37 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
     [UserCommand(name: "Presentami a Natsume-san!",
         DefaultGuildUserPermissions = Permissions.Administrator,
         Contexts = [InteractionContextType.Guild, InteractionContextType.DMChannel])]
-    public async Task AddSubscriber(User user)
+    public async Task BefriendNatsume(User user)
     {
         await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral | MessageFlags.Loading));
 
-        var subscriber = liteDbService.GetSubscriberById(user.Id);
-        if (subscriber?.ActiveSubscription is true)
+        var contact = liteDbService.GetNatsumeContactById(user.Id);
+        if (contact?.IsNatsumeFriend is true)
         {
             await ModifyResponseAsync(m => m
-                .WithContent($"Natsume-san conosce già {subscriber.Username}!"));
+                .WithContent($"Natsume-san è già amica di {contact.Nickname}!"));
             return;
         }
 
         var dmChannel = await user.GetDMChannelAsync();
 
-        if (subscriber?.ActiveSubscription is false)
+        if (contact?.IsNatsumeFriend is false)
         {
-            subscriber.ActiveSubscription = true;
-            liteDbService.UpdateSubscriber(subscriber);
+            contact = contact.Befriend();
+            liteDbService.UpdateNatsumeContact(contact);
 
             var welcomeBackPrompt =
                 $"""
-                 Scrivi un breve messaggio in chat di bentornato a {subscriber.Username}!
+                 Scrivi un breve messaggio in chat di bentornato a {contact.Nickname}!
                  Usa anche espressioni tipicamente giapponesi!
-                 Ricorda a {subscriber.Username} che quando ha bisogno può sempre scriverti!
-                 Approfittane per suggerire a {subscriber.Username} di studiare una tecnologia di 
+                 Ricorda a {contact.Nickname} che quando ha bisogno può sempre scriverti!
+                 Approfittane per suggerire a {contact.Nickname} di studiare una tecnologia di 
                  programmazione a tua scelta!
                  """;
 
             var welcomeBack = await _natsumeAi.GetCompletionTextAsync(
                 NatsumeLlmModel.Gpt4O,
-                SubscriberName,
+                ContactNickname,
                 welcomeBackPrompt
             );
 
@@ -52,39 +52,26 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
                 .WithContent(welcomeBack));
 
             await ModifyResponseAsync(m => m
-                .WithContent($"Natsume-san ha riabbracciato {subscriber.Username}!"));
+                .WithContent($"Natsume-san ha riabbracciato {contact.Nickname}!"));
             return;
         }
 
-        var newSubscriber = new Subscriber
-        {
-            Id = user.Id,
-            ActiveSubscription = true,
-            Username = user.GlobalName ?? user.Username,
-            CurrentBalance = 0,
-            LastBalanceCharge = null,
-            TotalBalanceCharged = 0,
-            LastInvocation = null,
-            TotalInvocations = 0,
-            InputTokensConsumed = 0,
-            OutputTokensConsumed = 0
-        };
-
-        liteDbService.AddSubscriber(newSubscriber);
+        var newContact = new NatsumeContact(user.Id, user.GetName());
+        liteDbService.AddNatsumeContact(newContact);
 
         var welcomePrompt =
             $"""
-             Scrivi un breve messaggio in chat in cui ti presenti a {newSubscriber.Username},
+             Scrivi un breve messaggio in chat in cui ti presenti a {newContact.Nickname},
              usando anche espressioni tipiche giapponesi.
              Aggiungi che quando ha bisogno può sempre scriverti e che speri andrete d'accordo e che
-             {newSubscriber.Username} sia gentile con te.
-             Approfittane per chiedere a {newSubscriber.Username} se ha mai studiato una tecnologia di programmazione 
+             {newContact.Nickname} sia gentile con te.
+             Approfittane per chiedere a {newContact.Nickname} se ha mai studiato una tecnologia di programmazione 
              a tua scelta!
              """;
 
         var welcome = await _natsumeAi.GetCompletionTextAsync(
             NatsumeLlmModel.Gpt4O,
-            SubscriberName,
+            ContactNickname,
             welcomePrompt
         );
 
@@ -92,38 +79,38 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
             .WithContent(welcome));
 
         await ModifyResponseAsync(m => m
-            .WithContent($"Natsume-san e {newSubscriber.Username} si sono presentati!"));
+            .WithContent($"Natsume-san e {newContact.Nickname} hanno stretto amicizia!"));
     }
 
     [UserCommand(name: "Dì addio a Natsume-san",
         DefaultGuildUserPermissions = Permissions.Administrator,
         Contexts = [InteractionContextType.Guild, InteractionContextType.DMChannel])]
-    public async Task RemoveSubscriber(User user)
+    public async Task UnfriendNatsume(User user)
     {
         await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral | MessageFlags.Loading));
 
-        var subscriber = liteDbService.GetSubscriberById(user.Id);
-        if (subscriber is null)
+        var contact = liteDbService.GetNatsumeContactById(user.Id);
+        if (contact is null)
         {
             await ModifyResponseAsync(m => m
                 .WithContent($"Natsume-san non conosce affatto {user.GlobalName ?? user.Username}!"));
             return;
         }
 
-        subscriber.ActiveSubscription = false;
-        liteDbService.UpdateSubscriber(subscriber);
+        contact = contact.Unfriend();
+        liteDbService.UpdateNatsumeContact(contact);
 
         var goodbyePrompt =
             $"""
-             Scrivi un breve messaggio in chat di addio a {subscriber.Username}!
+             Scrivi un breve messaggio in chat di addio a {contact.Nickname}!
              Usa anche espressioni tipicamente giapponesi!
-             Ringrazia {subscriber.Username} per tutti i messaggi che vi siete scritti.
-             Augura a {subscriber.Username} buona fortuna e dì che speri vi incontrerete ancora
+             Ringrazia {contact.Nickname} per tutti i messaggi che vi siete scritti.
+             Augura a {contact.Nickname} buona fortuna e dì che speri vi incontrerete ancora
              """;
 
         var goodbye = await _natsumeAi.GetCompletionTextAsync(
             NatsumeLlmModel.Gpt4O,
-            SubscriberName,
+            ContactNickname,
             goodbyePrompt
         );
 
@@ -132,39 +119,37 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
             .WithContent(goodbye));
 
         await ModifyResponseAsync(m => m
-            .WithContent($"Natsume-san ha detto addio a {subscriber.Username}"));
+            .WithContent($"Natsume-san ha detto addio a {contact.Nickname}"));
     }
 
     [UserCommand(name: "Fai un regalino a Natsume-san!",
         DefaultGuildUserPermissions = Permissions.Administrator,
         Contexts = [InteractionContextType.Guild, InteractionContextType.DMChannel])]
-    public async Task RechargeSubscriber(User user)
+    public async Task TipNatsume(User user)
     {
         await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral | MessageFlags.Loading));
 
-        var subscriber = liteDbService.GetSubscriberById(user.Id);
-        if (subscriber is null)
+        var contact = liteDbService.GetNatsumeContactById(user.Id);
+        if (contact is null)
         {
             await ModifyResponseAsync(m => m
                 .WithContent(
-                    $"Natsume-san non conosce {user.GlobalName ?? user.Username}! Non può accettare regalini da sconosciuti"));
+                    $"Natsume-san non conosce {user.GetName()}! Non può accettare regalini da sconosciuti"));
             return;
         }
 
-        subscriber.CurrentBalance += 1M;
-        subscriber.TotalBalanceCharged += 1M;
-        subscriber.LastBalanceCharge = DateTime.Now;
-        liteDbService.UpdateSubscriber(subscriber);
+        contact.AwardFriendship(0.1M);
+        liteDbService.UpdateNatsumeContact(contact);
 
         var thankYouPrompt =
             $"""
-             Scrivi un breve messaggio in chat a {subscriber.Username} per ringraziare del regalino!
+             Scrivi un breve messaggio in chat a {contact.Nickname} per ringraziare del regalino!
              E' super kawaiii!
              """;
 
         var thankYou = await _natsumeAi.GetCompletionTextAsync(
             NatsumeLlmModel.Gpt4O,
-            SubscriberName,
+            ContactNickname,
             thankYouPrompt
         );
 
@@ -173,6 +158,6 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
             .WithContent(thankYou));
 
         await ModifyResponseAsync(m => m
-            .WithContent($"Natsume-san è così felice del regalino ricevuto da {subscriber.Username}!"));
+            .WithContent($"Natsume-san è così felice del regalino ricevuto da {contact.Nickname}!"));
     }
 }
