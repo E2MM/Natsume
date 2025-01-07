@@ -11,8 +11,10 @@ public class NatsumeContact
     public decimal MessageFriendship { get; private set; }
     public decimal MaximumFriendship => 1M + TimeFriendship + ActivityFriendship + MessageFriendship;
     public decimal TotalFriendshipExpended { get; private set; }
+    public decimal DailyFriendshipExpended => TotalFriendshipExpended / (decimal)(DateTime.Now - FriendsSince).TotalDays;
     public DateTime? LastMessageOn { get; private set; }
     public ulong MessageCount { get; private set; }
+    public DateTime FriendsSince { get; private set; }
 
     public NatsumeContact()
     {
@@ -23,13 +25,14 @@ public class NatsumeContact
         Id = id;
         IsNatsumeFriend = true;
         Nickname = nickname;
-        CurrentFriendship = 0.35M;
+        CurrentFriendship = 0.25M;
         TimeFriendship = 0M;
         ActivityFriendship = 0M;
         MessageFriendship = 0M;
         LastMessageOn = null;
         TotalFriendshipExpended = 0M;
         MessageCount = 0;
+        FriendsSince = DateTime.Now;
     }
 
     public NatsumeContact AwardFriendship(decimal amount)
