@@ -35,11 +35,12 @@ public class NatsumeHqSlashCommandModule : ApplicationCommandModule<ApplicationC
 
                 sb.Append($"🆔 {c.Nickname}\t");
                 sb.Append($"{status}\t");
-                sb.Append($"🌟 {100 * c.CurrentFriendship:N2}/{100 * c.MaximumFriendship:N2}\t");
+                sb.Append($"{c.MessageCount} 💌\t");
+                sb.Append($"💸 {c.TotalFriendshipExpended:N2}\t");
+                sb.Append($"🌟 {100 * c.CurrentFriendship:N2} / {100 * c.MaximumFriendship:N2}\t");
                 sb.Append("( ");
-                sb.Append($"💬 {100 * c.MessageFriendship:N2}\t ⌛ {100 * c.TimeFriendship:N2}\t 🏆 {100 * c.ActivityFriendship:N2}");
+                sb.Append($"💬 {100 * c.MessageFriendship:N2} + ⌛ {100 * c.TimeFriendship:N2} + 🏆 {100 * c.ActivityFriendship:N2}");
                 sb.Append(" )\t");
-                sb.Append($"#️⃣{c.MessageCount}");
                 sb.Append('\n');
             }
 
