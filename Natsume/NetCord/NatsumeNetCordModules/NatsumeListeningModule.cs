@@ -13,32 +13,15 @@ public class NatsumeListeningModule(
     NatsumeAi natsumeAi) :
     IGatewayEventHandler<Message>
 {
-    private string ContactName { get; set; } = string.Empty;
-    private User Natsume { get; set; } = null!;
-    private Message Message { get; set; } = null!;
-
-    private bool IsOwnMessage() => Message.Author == Natsume;
-
-    private bool IsNatsumeTagged() => Message.MentionedUsers.Contains(Natsume) || Message.MentionEveryone;
-
-    private bool IsDirectMessage() => Message.Channel is DMChannel;
-
-    private async Task InitVariables(Message message)
+    private async Task NatsumeStartsTyping(NatsumeListeningContext context)
     {
-        Message = message;
-        ContactName = Message.Author.GetName();
-        Natsume = await client.GetCurrentUserAsync();
-    }
-
-    private async Task NatsumeStartsTyping()
-    {
-        if (Message.Channel is not null)
+        if (context.Message.Channel is not null)
         {
-            await Message.Channel.TriggerTypingStateAsync();
+            await context.Message.Channel.TriggerTypingStateAsync();
             return;
         }
 
-        var channel = await client.GetChannelAsync(Message.ChannelId);
+        var channel = await client.GetChannelAsync(context.Message.ChannelId);
         if (channel is TextChannel textChannel)
             await textChannel.TriggerTypingStateAsync();
         else if (channel is DMChannel dmChannel)
@@ -49,9 +32,9 @@ public class NatsumeListeningModule(
     //
     // private bool UserReferencedANatsumeMessage() => Message.ReferencedMessage?.Author == Natsume;
 
-    private async Task<List<RestMessage>> FetchAllConversationMessagesAsync()
+    private async Task<List<RestMessage>> FetchAllConversationMessagesAsync(NatsumeListeningContext context)
     {
-        RestMessage message = Message;
+        RestMessage message = context.Message;
         List<RestMessage> discordMessages = [message];
         while (message.ReferencedMessage is not null && discordMessages.Count < 20)
         {
@@ -63,7 +46,10 @@ public class NatsumeListeningModule(
         return discordMessages;
     }
 
-    private (ChatMessageType type, string content) GetChatMessage(RestMessage message)
+    private static (ChatMessageType type, string content) GetChatMessage(
+        NatsumeListeningContext context,
+        RestMessage message
+    )
     {
         var messageContent = message.Content;
         foreach (var user in message.MentionedUsers)
@@ -71,40 +57,43 @@ public class NatsumeListeningModule(
             messageContent = message.Content.Replace($"<@{user.Id}>", user.GetName());
         }
 
-        if (message.Author != Natsume && message.Author != Message.Author)
+        if (message.Author != context.Natsume && message.Author != context.Message.Author)
         {
             messageContent = $"{message.Author.GetName()} dice:\n {messageContent}";
         }
 
         return message.Author switch
         {
-            _ when message.Author == Natsume => (ChatMessageType.Assistant, messageContent),
+            _ when message.Author == context.Natsume => (ChatMessageType.Assistant, messageContent),
             _ => (ChatMessageType.User, messageContent)
         };
     }
 
-    private List<(ChatMessageType type, string content)> GenerateChatMessages(List<RestMessage> messages)
+    private List<(ChatMessageType type, string content)> GenerateChatMessages(
+        NatsumeListeningContext context,
+        List<RestMessage> messages
+    )
     {
         List<(ChatMessageType type, string content)> chatMessages =
         [
-            (ChatMessageType.System, NatsumeAi.SystemPrompt(ContactName))
+            (ChatMessageType.System, NatsumeAi.SystemPrompt(context.ContactName))
         ];
 
-        chatMessages.AddRange(messages.Select(GetChatMessage));
+        chatMessages.AddRange(messages.Select(m => GetChatMessage(context, m)));
 
         return chatMessages;
     }
 
-    private async Task<string> FetchNatsumeCompletion()
+    private async Task<string> FetchNatsumeCompletion(NatsumeListeningContext context)
     {
-        var conversationMessages = await FetchAllConversationMessagesAsync();
-        var openAiChatMessages = GenerateChatMessages(conversationMessages);
+        var conversationMessages = await FetchAllConversationMessagesAsync(context);
+        var openAiChatMessages = GenerateChatMessages(context, conversationMessages);
 
         var completion =
-            await natsumeAi.GetFriendCompletionAsync(
-                NatsumeLlmModel.Gpt4O,
-                Message.Author.Id,
-                ContactName,
+            await natsumeAi.GetFriendChatCompletionAsync(
+                NatsumeChatModel.Gpt4O,
+                context.Message.Author.Id,
+                context.ContactName,
                 openAiChatMessages);
         //await openAiService.GetChatCompletion(NatsumeLlmModel.Gpt4O.ToGptModelString(), openAiChatMessages);
         return completion.Content[0].Text;
@@ -124,20 +113,20 @@ public class NatsumeListeningModule(
         //              """;
     }
 
-    private async Task NatsumeReplies(string completion)
+    private static async Task NatsumeReplies(NatsumeListeningContext context, string completion)
     {
-        await Message.ReplyAsync(new ReplyMessageProperties().WithContent(completion));
+        await context.Message.ReplyAsync(new ReplyMessageProperties().WithContent(completion));
     }
 
     public async ValueTask HandleAsync(Message message)
     {
-        await InitVariables(message);
+        var context = new NatsumeListeningContext(message, await client.GetCurrentUserAsync());
 
-        if (IsOwnMessage()) return;
-        if (IsNatsumeTagged() is false && IsDirectMessage() is false) return;
+        if (context.IsOwnMessage()) return;
+        if (context.IsNatsumeTagged() is false && context.IsDirectMessage() is false) return;
 
-        await NatsumeStartsTyping();
-        var completion = await FetchNatsumeCompletion();
-        await NatsumeReplies(completion);
+        await NatsumeStartsTyping(context);
+        var completion = await FetchNatsumeCompletion(context);
+        await NatsumeReplies(context, completion);
     }
 }

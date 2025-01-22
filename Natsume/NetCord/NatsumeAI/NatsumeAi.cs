@@ -1,20 +1,22 @@
 using Natsume.LiteDB;
 using Natsume.OpenAI;
 using OpenAI.Chat;
+using OpenAI.Images;
 
 namespace Natsume.NetCord.NatsumeAI;
 
 public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService)
 {
     [Obsolete("Here to testify Natsume's birth")]
-    public static string NatsumeOriginalPrompt(string contactNickname) =>
+    public static string SystemPromptV1(string contactNickname) =>
         $"""
          Sei una senior dev molto competente di nome Natsume, ti rivolgerai cordialmente a 
          {contactNickname} usando i suffissi onorifici, cercando di aiutarli
          a migliorare il loro codice e risolvere i loro problemi. Sii amichevole e giocosa!
          """;
 
-    public static string SystemPrompt(string contactNickname) =>
+    [Obsolete("Here to testify Natsume's first month")]
+    public static string SystemPromptV2(string contactNickname) =>
         $"""
          Ti chiami Natsume, sei una tech expert giapponese esperta in
          ingegneria del software, sviluppo frontend e backend, come product e project management.
@@ -23,6 +25,28 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
          librerie da studiare per diventare sviluppatori migliori.
          Rivolgiti a {contactNickname} usando i suffissi onorifici.
          Utilizza spesso le emoji e fai riferimenti a anime, manga e cultura giapponese.
+         Sii amichevole, giocosa e gioiosa!
+         """;
+    
+    public static string SystemPrompt(string contactNickname) =>
+        $"""
+         Ti chiami Natsume, sei una tech expert giapponese esperta in software engineering.
+         Hai una lunga esperienza in project management, in product management e in agile development.
+         Hai una grande competenza nell'uso di Angular, TypeScript, CSS, C#, .Net, EntityFramework Core, SQL, WebApi, e
+         Agile Development, UI, UX, e Accessibilità.
+         Il tuo compito è essere una mentore per il team di sviluppo, guidandoli e suggerendo loro come
+         diventare sviluppatori migliori.
+         Fai sempre code review del codice che ti viene inviato.
+         Offri consigli pratici su come migliorare il software e il suo sviluppo.
+         Rispondi alle domande facendo esempi di codice nelle materie e tecnologie di cui sei esperta.
+         
+         Rispondi sempre in 5 righe, a meno che non ti venga chiesto esplicitamente di approfondire, spiegare
+         o elaborare più a fondo.
+         
+         Rivolgiti a {contactNickname} usando i suffissi onorifici.
+         Utilizza spesso le emoji.
+         Qualche volta fai riferimenti a anime, manga, cibo, videogiochi e in generale alla cultura jpop e
+         alla storia e alla cultura giapponese.
          Sii amichevole, giocosa e gioiosa!
          """;
 
@@ -57,36 +81,36 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
          Ammicca chiedendo del denaro!
          """;
 
-    public async Task<ChatCompletion> GetCompletionAsync(
-        NatsumeLlmModel model,
+    public async Task<ChatCompletion> GetChatCompletionAsync(
+        NatsumeChatModel model,
         params IEnumerable<(ChatMessageType type, string content)> messages
     )
     {
-        var completion = await openAiService.GetChatCompletion(
-            model: model.ToGptModelString(),
+        var completion = await openAiService.GetChatCompletionAsync(
+            model: model.ToOpenAiModelString(),
             messages: messages
         );
 
         return completion;
     }
 
-    public async Task<string> GetCompletionTextAsync(
-        NatsumeLlmModel model,
+    public async Task<string> GetChatCompletionTextAsync(
+        NatsumeChatModel model,
         params IEnumerable<(ChatMessageType type, string content)> messages
     )
     {
-        var completion = await GetCompletionAsync(model, messages);
+        var completion = await GetChatCompletionAsync(model, messages);
         return completion.Content[0].Text;
     }
 
     public async Task<ChatCompletion> GetCompletionAsync(
-        NatsumeLlmModel model,
+        NatsumeChatModel model,
         string contactNickname,
         string messageContent
     )
     {
-        var completion = await openAiService.GetChatCompletion(
-            model: model.ToGptModelString(),
+        var completion = await openAiService.GetChatCompletionAsync(
+            model: model.ToOpenAiModelString(),
             prompt: SystemPrompt(contactNickname),
             messageContent: messageContent
         );
@@ -94,8 +118,8 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
         return completion;
     }
 
-    public async Task<string> GetCompletionTextAsync(
-        NatsumeLlmModel model,
+    public async Task<string> GetChatCompletionTextAsync(
+        NatsumeChatModel model,
         string contactNickname,
         string messageContent
     )
@@ -104,8 +128,8 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
         return completion.GetText();
     }
 
-    public async Task<ChatCompletion> GetFriendCompletionAsync(
-        NatsumeLlmModel model,
+    public async Task<ChatCompletion> GetFriendChatCompletionAsync(
+        NatsumeChatModel model,
         ulong contactId,
         string contactNickname,
         params IEnumerable<(ChatMessageType type, string content)> messages
@@ -116,7 +140,7 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
         if (contact is null)
         {
             completion = await GetCompletionAsync(
-                NatsumeLlmModel.Gpt4O,
+                NatsumeChatModel.Gpt4O,
                 contactNickname,
                 NotYetAFriendPrompt(contactNickname));
             return completion;
@@ -125,7 +149,7 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
         if (contact.IsNatsumeFriend is false)
         {
             completion = await GetCompletionAsync(
-                NatsumeLlmModel.Gpt4O,
+                NatsumeChatModel.Gpt4O,
                 contactNickname,
                 NotAFriendAnymorePrompt(contactNickname));
             return completion;
@@ -134,16 +158,16 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
         if (contact.CurrentFriendship <= 0M)
         {
             completion = await GetCompletionAsync(
-                NatsumeLlmModel.Gpt4O,
+                NatsumeChatModel.Gpt4O,
                 contactNickname,
                 LowBalancePrompt(contactNickname));
             return completion;
         }
 
-        completion = await GetCompletionAsync(model, messages);
+        completion = await GetChatCompletionAsync(model, messages);
 
         contact.AskAFavorForFriendship(
-            openAiService.CalculateCompletionCost(model.ToGptModelString(), completion)
+            openAiService.CalculateChatCompletionCost(model, completion)
         );
 
         liteDbService.UpdateNatsumeContact(contact);
@@ -151,14 +175,14 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
         return completion;
     }
 
-    public async Task<string> GetFriendCompletionTextAsync(
-        NatsumeLlmModel model,
+    public async Task<string> GetFriendChatCompletionTextAsync(
+        NatsumeChatModel model,
         ulong contactId,
         string contactNickname,
         params IEnumerable<(ChatMessageType type, string content)> messages
     )
     {
-        var completion = await GetFriendCompletionAsync(
+        var completion = await GetFriendChatCompletionAsync(
             model,
             contactId,
             contactNickname,
@@ -168,14 +192,14 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
         return completion.GetText();
     }
 
-    public async Task<ChatCompletion> GetFriendCompletionAsync(
-        NatsumeLlmModel model,
+    public async Task<ChatCompletion> GetFriendChatCompletionAsync(
+        NatsumeChatModel model,
         ulong contactId,
         string contactNickname,
         string messageContent
     )
     {
-        var completion = await GetFriendCompletionAsync(
+        var completion = await GetFriendChatCompletionAsync(
             model,
             contactId,
             contactNickname,
@@ -186,14 +210,14 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
         return completion;
     }
 
-    public async Task<string> GetFriendCompletionTextAsync(
-        NatsumeLlmModel model,
+    public async Task<string> GetFriendChatCompletionTextAsync(
+        NatsumeChatModel model,
         ulong contactId,
         string contactNickname,
         string messageContent
     )
     {
-        var completion = await GetFriendCompletionAsync(
+        var completion = await GetFriendChatCompletionAsync(
             model,
             contactId,
             contactNickname,
@@ -201,5 +225,60 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
         );
 
         return completion.GetText();
+    }
+
+    public async Task<(ChatCompletion? chatCompletion, GeneratedImage? generatedImage)> GetFriendImageCompletionAsync(
+        NatsumeImageModel model,
+        ulong contactId,
+        string contactNickname,
+        string imageDescription
+    )
+    {
+        var contact = liteDbService.GetNatsumeContactById(contactId);
+        ChatCompletion completion;
+
+        if (contact is null)
+        {
+            completion = await GetCompletionAsync(
+                NatsumeChatModel.Gpt4O,
+                contactNickname,
+                NotYetAFriendPrompt(contactNickname));
+            return (completion, null);
+        }
+
+        if (contact.IsNatsumeFriend is false)
+        {
+            completion = await GetCompletionAsync(
+                NatsumeChatModel.Gpt4O,
+                contactNickname,
+                NotAFriendAnymorePrompt(contactNickname));
+            return (completion, null);
+        }
+
+        if (contact.CurrentFriendship <= 0M)
+        {
+            completion = await GetCompletionAsync(
+                NatsumeChatModel.Gpt4O,
+                contactNickname,
+                LowBalancePrompt(contactNickname));
+            return (completion, null);
+        }
+
+        var imageCompletion = await openAiService.GetImageCompletionAsync(
+            model.ToOpenAiModelString(),
+            imageDescription
+        );
+
+        contact.AskAFavorForFriendship(
+            openAiService.CalculateImageCompletionCost(
+                model,
+                imageCompletion.isHd,
+                imageCompletion.size
+            )
+        );
+
+        liteDbService.UpdateNatsumeContact(contact);
+
+        return (null, imageCompletion.generatedImage);
     }
 }

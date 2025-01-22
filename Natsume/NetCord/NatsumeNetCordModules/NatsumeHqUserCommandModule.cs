@@ -42,8 +42,8 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
                  programmazione a tua scelta!
                  """;
 
-            var welcomeBack = await _natsumeAi.GetCompletionTextAsync(
-                NatsumeLlmModel.Gpt4O,
+            var welcomeBack = await _natsumeAi.GetChatCompletionTextAsync(
+                NatsumeChatModel.Gpt4O,
                 ContactNickname,
                 welcomeBackPrompt
             );
@@ -69,8 +69,8 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
              a tua scelta!
              """;
 
-        var welcome = await _natsumeAi.GetCompletionTextAsync(
-            NatsumeLlmModel.Gpt4O,
+        var welcome = await _natsumeAi.GetChatCompletionTextAsync(
+            NatsumeChatModel.Gpt4O,
             ContactNickname,
             welcomePrompt
         );
@@ -108,8 +108,8 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
              Augura a {contact.Nickname} buona fortuna e dì che speri vi incontrerete ancora
              """;
 
-        var goodbye = await _natsumeAi.GetCompletionTextAsync(
-            NatsumeLlmModel.Gpt4O,
+        var goodbye = await _natsumeAi.GetChatCompletionTextAsync(
+            NatsumeChatModel.Gpt4O,
             ContactNickname,
             goodbyePrompt
         );
@@ -147,8 +147,8 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
              E' super kawaiii!
              """;
 
-        var thankYou = await _natsumeAi.GetCompletionTextAsync(
-            NatsumeLlmModel.Gpt4O,
+        var thankYou = await _natsumeAi.GetChatCompletionTextAsync(
+            NatsumeChatModel.Gpt4O,
             ContactNickname,
             thankYouPrompt
         );

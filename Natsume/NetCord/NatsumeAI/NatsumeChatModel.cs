@@ -2,7 +2,7 @@ using NetCord.Services.ApplicationCommands;
 
 namespace Natsume.NetCord.NatsumeAI;
 
-public enum NatsumeLlmModel
+public enum NatsumeChatModel
 {
     [SlashCommandChoice("gpt-4o")] Gpt4O,
     [SlashCommandChoice("gpt-4o-mini")] Gpt4OMini,

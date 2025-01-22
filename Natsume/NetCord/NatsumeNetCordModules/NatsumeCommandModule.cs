@@ -7,17 +7,17 @@ namespace Natsume.NetCord.NatsumeNetCordModules;
 public class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModule(natsumeAi)
 {
     [SlashCommand(name: "chat", description: "Chatta con Natsume-san!")]
-    public async Task Chat(
+    public async Task ChatAsync(
         [SlashCommandParameter(Name = "messaggio", Description = "Scrivi il tuo messaggio a Natsume-san")]
         string message)
     {
-        await ExecuteFriendNatsumeCommandAsync(NatsumeLlmModel.Gpt4O, message);
+        await ExecuteFriendNatsumeCommandAsync(NatsumeChatModel.Gpt4O, message);
     }
 
     [SlashCommand(name: "aiutami", description: "Chiedi l'esperta consulenza tecnica di Natsume-san!")]
-    public async Task HelpMe(
+    public async Task HelpMeAsync(
         [SlashCommandParameter(Name = "llm", Description = "Scegli il modello LLM da usare")]
-        NatsumeLlmModel model,
+        NatsumeChatModel model,
         [SlashCommandParameter(Name = "richiesta", Description = "Scrivi la tua richiesta per Natsume-san")]
         string request)
     {
@@ -31,7 +31,7 @@ public class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModule(
     }
 
     [MessageCommand(name: "Natsume-san, non ho capito!")]
-    public async Task ExplainMe(RestMessage restMessage)
+    public async Task ExplainMeAsync(RestMessage restMessage)
     {
         var messageContent =
             $"""
@@ -39,11 +39,11 @@ public class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModule(
              {restMessage.Content}
              """;
 
-        await ExecuteFriendNatsumeCommandAsync(NatsumeLlmModel.Gpt4O, messageContent);
+        await ExecuteFriendNatsumeCommandAsync(NatsumeChatModel.Gpt4O, messageContent);
     }
 
     [MessageCommand(name: "Natsume-san, cosa ne pensi?")]
-    public async Task Elaborate(RestMessage restMessage)
+    public async Task ElaborateAsync(RestMessage restMessage)
     {
         var messageContent =
             $"""
@@ -51,6 +51,15 @@ public class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModule(
              {restMessage.Content}
              """;
 
-        await ExecuteFriendNatsumeCommandAsync(NatsumeLlmModel.Gpt4O, messageContent);
+        await ExecuteFriendNatsumeCommandAsync(NatsumeChatModel.Gpt4O, messageContent);
+    }
+
+    [SlashCommand(name: "image", description: "genera una immagine AI")]
+    public async Task GenerateImageAsync(
+        [SlashCommandParameter(Name = "description",
+            Description = "Scrivi a Natsume-san il contenuto dell'immagine che vorresti generare")]
+        string imageDescription)
+    {
+        await ExecuteFriendNatsumeCommandAsync(NatsumeImageModel.Dalle3, imageDescription);
     }
 }
