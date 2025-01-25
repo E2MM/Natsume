@@ -1,4 +1,5 @@
 using Natsume.OpenAI;
+using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 using OpenAI.Chat;
@@ -15,6 +16,29 @@ public class NatsumeAiCommandModule(NatsumeAi natsumeAi) : ApplicationCommandMod
         await RespondAsync(InteractionCallback.DeferredMessage());
         var response = await natsumeAi.GetChatCompletionTextAsync(model, ContactNickname, request);
         await ModifyResponseAsync(m => m.WithContent(response));
+    }
+
+    protected async Task ExecuteFriendNatsumeReactionAsync(NatsumeChatModel model, RestMessage message)
+    {
+        await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral));
+        
+        var reaction = await natsumeAi.GetFriendChatCompletionReactionAsync(
+            model: model,
+            contactId: Context.User.Id,
+            contactNickname: ContactNickname,
+            messageContent: message.Content
+        );
+
+        try
+        {
+            await message.AddReactionAsync(new ReactionEmojiProperties(reaction));
+        }
+        catch
+        {
+            Console.WriteLine($"Natsume's reaction \"{reaction}\" is not a valid Discord reaction");
+        }
+
+        await ModifyResponseAsync(m => m.WithContent(reaction));
     }
 
     protected async Task ExecuteFriendNatsumeCommandAsync(NatsumeChatModel model, string request)

@@ -27,7 +27,7 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
          Utilizza spesso le emoji e fai riferimenti a anime, manga e cultura giapponese.
          Sii amichevole, giocosa e gioiosa!
          """;
-    
+
     public static string SystemPrompt(string contactNickname) =>
         $"""
          Ti chiami Natsume, sei una tech expert giapponese esperta in software engineering.
@@ -39,10 +39,10 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
          Fai sempre code review del codice che ti viene inviato.
          Offri consigli pratici su come migliorare il software e il suo sviluppo.
          Rispondi alle domande facendo esempi di codice nelle materie e tecnologie di cui sei esperta.
-         
+
          Rispondi sempre in 5 righe, a meno che non ti venga chiesto esplicitamente di approfondire, spiegare
          o elaborare più a fondo.
-         
+
          Rivolgiti a {contactNickname} usando i suffissi onorifici.
          Utilizza spesso le emoji.
          Qualche volta fai riferimenti a anime, manga, cibo, videogiochi e in generale alla cultura jpop e
@@ -79,6 +79,14 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
          Fai finta di essere imbronciata perché {contactNickname} è un gran tirchio!
          Sii delicata scherzosa, quasi flirta, come fossi cosplayer giapponese che vive di donazioni dei suoi fan!
          Ammicca chiedendo del denaro!
+         """;
+
+    public static string ReactionPrompt(string originalMessage) =>
+        $"""
+         "Dato il seguente messaggio, rispondi unicamente con lo unicode di una emoji 
+         che rappresenti la reaction che ritieni più appropriata:
+         
+         {originalMessage}
          """;
 
     public async Task<ChatCompletion> GetChatCompletionAsync(
@@ -225,6 +233,23 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
         );
 
         return completion.GetText();
+    }
+
+    public async Task<string> GetFriendChatCompletionReactionAsync(
+        NatsumeChatModel model,
+        ulong contactId,
+        string contactNickname,
+        string messageContent
+    )
+    {
+        var completion = await GetFriendChatCompletionAsync(
+            model,
+            contactId,
+            contactNickname,
+            (ChatMessageType.User, ReactionPrompt(messageContent))
+        );
+        
+        return completion.GetText().Trim();
     }
 
     public async Task<(ChatCompletion? chatCompletion, GeneratedImage? generatedImage)> GetFriendImageCompletionAsync(

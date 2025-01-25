@@ -113,6 +113,28 @@ public class NatsumeListeningModule(
         //              """;
     }
 
+    private async Task NatsumeMightReact(NatsumeListeningContext context)
+    {
+        //if (Random.Shared.NextDouble() > 0.69) return;
+
+        var reaction = await natsumeAi
+            .GetFriendChatCompletionReactionAsync(
+                model: NatsumeChatModel.Gpt4O,
+                contactId: context.Message.Author.Id,
+                contactNickname: context.ContactName,
+                messageContent: context.Message.Content
+            );
+
+        try
+        {
+            await context.Message.AddReactionAsync(new ReactionEmojiProperties(reaction));
+        }
+        catch
+        {
+            Console.WriteLine($"Natsume's reaction \"{reaction}\" is not a valid Discord reaction");
+        }
+    }
+
     private static async Task NatsumeReplies(NatsumeListeningContext context, string completion)
     {
         await context.Message.ReplyAsync(new ReplyMessageProperties().WithContent(completion));
@@ -120,13 +142,21 @@ public class NatsumeListeningModule(
 
     public async ValueTask HandleAsync(Message message)
     {
-        var context = new NatsumeListeningContext(message, await client.GetCurrentUserAsync());
+        try
+        {
+            var context = new NatsumeListeningContext(message, await client.GetCurrentUserAsync());
 
-        if (context.IsOwnMessage()) return;
-        if (context.IsNatsumeTagged() is false && context.IsDirectMessage() is false) return;
+            if (context.IsOwnMessage()) return;
+            if (context.IsNatsumeTagged() is false && context.IsDirectMessage() is false) return;
 
-        await NatsumeStartsTyping(context);
-        var completion = await FetchNatsumeCompletion(context);
-        await NatsumeReplies(context, completion);
+            await NatsumeStartsTyping(context);
+            await NatsumeMightReact(context);
+            var completion = await FetchNatsumeCompletion(context);
+            await NatsumeReplies(context, completion);
+        }
+        catch(Exception e)
+        {
+            Console.WriteLine(e);
+        }
     }
 }
