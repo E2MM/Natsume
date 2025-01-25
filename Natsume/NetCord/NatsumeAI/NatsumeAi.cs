@@ -234,6 +234,19 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
 
         return completion.GetText();
     }
+    
+    public async Task<string> GetChatCompletionReactionAsync(
+        NatsumeChatModel model,
+        string messageContent
+    )
+    {
+        var completion = await GetChatCompletionAsync(
+            model,
+            (ChatMessageType.User, ReactionPrompt(messageContent))
+        );
+        
+        return completion.GetText().Trim();
+    }
 
     public async Task<string> GetFriendChatCompletionReactionAsync(
         NatsumeChatModel model,

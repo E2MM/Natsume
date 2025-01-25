@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Natsume.NetCord.NatsumeAI;
 using Natsume.OpenAI;
 using NetCord;
@@ -113,25 +114,90 @@ public class NatsumeListeningModule(
         //              """;
     }
 
+    private async Task<string> GetNatsumeReaction(NatsumeListeningContext context)
+    {
+        if (context.IsNatsumeInterested())
+        {
+            var reaction = await natsumeAi
+                .GetFriendChatCompletionReactionAsync(
+                    model: NatsumeChatModel.Gpt4O,
+                    contactId: context.Message.Author.Id,
+                    contactNickname: context.ContactName,
+                    messageContent: context.Message.Content
+                );
+
+            return reaction;
+        }
+        else
+        {
+            var reaction = await natsumeAi
+                .GetChatCompletionReactionAsync(
+                    model: NatsumeChatModel.Gpt4O,
+                    messageContent: context.Message.Content
+                );
+
+            return reaction;
+        }
+    }
+
+    private async Task NatsumeMightReply(NatsumeListeningContext context)
+    {
+        var likelihood = context switch
+        {
+            _ when context.IsOwnMessage() => 0,
+            _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 50 => 0,
+            _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 100 => 1,
+            _ when context.IsNatsumeInterested() is false => 2,
+            _ when context.IsDirectMessage() is true => 100,
+            _ when context.IsEveryoneTagged() is true && context.Message.Content.Length < 50 => 15,
+            _ when context.IsEveryoneTagged() is true && context.Message.Content.Length < 100 => 35,
+            _ when context.IsEveryoneTagged() is true => 65,
+            _ when context.IsNatsumeTagged() is true => 100,
+            _ => 0
+        };
+
+        if (Random.Shared.Next(0, 101) <= likelihood)
+        {
+            await NatsumeStartsTyping(context);
+            var completion = await FetchNatsumeCompletion(context);
+            await NatsumeReplies(context, completion);
+        }
+    }
+
     private async Task NatsumeMightReact(NatsumeListeningContext context)
     {
-        //if (Random.Shared.NextDouble() > 0.69) return;
-
-        var reaction = await natsumeAi
-            .GetFriendChatCompletionReactionAsync(
-                model: NatsumeChatModel.Gpt4O,
-                contactId: context.Message.Author.Id,
-                contactNickname: context.ContactName,
-                messageContent: context.Message.Content
-            );
-
-        try
+        List<string> reactions = [];
+        var likelihood = context switch
         {
-            await context.Message.AddReactionAsync(new ReactionEmojiProperties(reaction));
+            _ when context.IsOwnMessage() => 0,
+            _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 50 => 2,
+            _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 250 => 5,
+            _ when context.IsNatsumeInterested() is false => 25,
+            _ when context.IsDirectMessage() is true && context.Message.Content.Length < 50 => 3,
+            _ when context.IsDirectMessage() is true && context.Message.Content.Length < 250 => 10,
+            _ when context.IsDirectMessage() is true => 30,
+            _ when context.IsEveryoneTagged() is true => 100,
+            _ when context.IsNatsumeTagged() is true => 70,
+            _ => 0
+        };
+
+        while (Random.Shared.Next(0, 100) < likelihood)
+        {
+            likelihood /= 2;
+            var reaction = await GetNatsumeReaction(context);
+            reactions.Add(reaction);
         }
-        catch
+
+        foreach (var reaction in reactions)
         {
-            Console.WriteLine($"Natsume's reaction \"{reaction}\" is not a valid Discord reaction");
+            try
+            {
+                await context.Message.AddReactionAsync(new ReactionEmojiProperties(reaction));
+            }
+            catch
+            {
+                Console.WriteLine($"Natsume's reaction \"{reaction}\" is not a valid Discord reaction");
+            }
         }
     }
 
@@ -146,15 +212,10 @@ public class NatsumeListeningModule(
         {
             var context = new NatsumeListeningContext(message, await client.GetCurrentUserAsync());
 
-            if (context.IsOwnMessage()) return;
-            if (context.IsNatsumeTagged() is false && context.IsDirectMessage() is false) return;
-
-            await NatsumeStartsTyping(context);
             await NatsumeMightReact(context);
-            var completion = await FetchNatsumeCompletion(context);
-            await NatsumeReplies(context, completion);
+            await NatsumeMightReply(context);
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             Console.WriteLine(e);
         }

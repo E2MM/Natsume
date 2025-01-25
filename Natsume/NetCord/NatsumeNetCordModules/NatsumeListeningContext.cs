@@ -11,7 +11,16 @@ public class NatsumeListeningContext(Message message, User userNatsume)
     
     public bool IsOwnMessage() => Message.Author == Natsume;
 
-    public bool IsNatsumeTagged() => Message.MentionedUsers.Contains(Natsume) || Message.MentionEveryone;
-
+    public bool IsNatsumeTagged() => Message.MentionedUsers.Contains(Natsume);
+    public bool IsEveryoneTagged() => Message.MentionEveryone;
     public bool IsDirectMessage() => Message.Channel is DMChannel;
+    
+    public bool IsNatsumeInterested()
+    {
+        if (IsOwnMessage()) return false;
+        if (IsNatsumeTagged()) return true;
+        if (IsEveryoneTagged()) return true;
+        if (IsDirectMessage()) return true;
+        return false;
+    }
 }
