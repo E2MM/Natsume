@@ -1,3 +1,4 @@
+using System.Globalization;
 using Natsume.OpenAI;
 using NetCord;
 using NetCord.Rest;
@@ -18,27 +19,44 @@ public class NatsumeAiCommandModule(NatsumeAi natsumeAi) : ApplicationCommandMod
         await ModifyResponseAsync(m => m.WithContent(response));
     }
 
-    protected async Task ExecuteFriendNatsumeReactionAsync(NatsumeChatModel model, RestMessage message)
+    protected async Task ExecuteFriendNatsumeReactionsAsync(NatsumeChatModel model, RestMessage message)
     {
         await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral));
-        
-        var reaction = await natsumeAi.GetFriendChatCompletionReactionAsync(
+
+        List<string> discordReactions = [];
+
+        var reactions = await natsumeAi.GetFriendChatCompletionReactionsAsync(
             model: model,
             contactId: Context.User.Id,
             contactNickname: ContactNickname,
             messageContent: message.Content
         );
 
-        try
+        var enumerator = StringInfo.GetTextElementEnumerator(reactions);
+        while (enumerator.MoveNext())
         {
-            await message.AddReactionAsync(new ReactionEmojiProperties(reaction));
-        }
-        catch
-        {
-            Console.WriteLine($"Natsume's reaction \"{reaction}\" is not a valid Discord reaction");
+            var reaction = enumerator.GetTextElement();
+            if (reaction.Trim() != string.Empty)
+            {
+                discordReactions.Add(enumerator.GetTextElement());
+            }
         }
 
-        await ModifyResponseAsync(m => m.WithContent(reaction));
+        discordReactions = discordReactions.Distinct().ToList();
+
+        foreach (var discordReaction in discordReactions)
+        {
+            try
+            {
+                await message.AddReactionAsync(new ReactionEmojiProperties(discordReaction));
+            }
+            catch
+            {
+                Console.WriteLine($"Natsume's reaction \"{discordReaction}\" is not a valid Discord reaction");
+            }
+        }
+
+        await ModifyResponseAsync(m => m.WithContent(string.Concat(discordReactions)));
     }
 
     protected async Task ExecuteFriendNatsumeCommandAsync(NatsumeChatModel model, string request)

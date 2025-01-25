@@ -66,6 +66,6 @@ public class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModule(
     [MessageCommand(name: "Natsume-san, reacta!")]
     public async Task ReactAsync(RestMessage restMessage)
     {
-        await ExecuteFriendNatsumeReactionAsync(NatsumeChatModel.Gpt4O, restMessage);
+        await ExecuteFriendNatsumeReactionsAsync(NatsumeChatModel.Gpt4O, restMessage);
     }
 }

@@ -83,8 +83,7 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
 
     public static string ReactionPrompt(string originalMessage) =>
         $"""
-         "Dato il seguente messaggio, rispondi unicamente con lo unicode di una emoji 
-         che rappresenti la reaction che ritieni più appropriata:
+         "Dato il seguente messaggio, rispondi unicamente con le Discord reactions che ritieni più appropriate:
          
          {originalMessage}
          """;
@@ -235,7 +234,7 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
         return completion.GetText();
     }
     
-    public async Task<string> GetChatCompletionReactionAsync(
+    public async Task<string> GetChatCompletionReactionsAsync(
         NatsumeChatModel model,
         string messageContent
     )
@@ -248,7 +247,7 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
         return completion.GetText().Trim();
     }
 
-    public async Task<string> GetFriendChatCompletionReactionAsync(
+    public async Task<string> GetFriendChatCompletionReactionsAsync(
         NatsumeChatModel model,
         ulong contactId,
         string contactNickname,
