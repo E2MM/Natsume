@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using Natsume.NetCord.NatsumeAI;
 using Natsume.OpenAI;
 using NetCord;
@@ -149,11 +148,11 @@ public class NatsumeListeningModule(
             _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 50 => 0,
             _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 100 => 1,
             _ when context.IsNatsumeInterested() is false => 2,
-            _ when context.IsDirectMessage() is true => 100,
-            _ when context.IsEveryoneTagged() is true && context.Message.Content.Length < 50 => 15,
-            _ when context.IsEveryoneTagged() is true && context.Message.Content.Length < 100 => 35,
-            _ when context.IsEveryoneTagged() is true => 65,
-            _ when context.IsNatsumeTagged() is true => 100,
+            _ when context.IsDirectMessage() => 100,
+            _ when context.IsEveryoneTagged() && context.Message.Content.Length < 50 => 15,
+            _ when context.IsEveryoneTagged() && context.Message.Content.Length < 100 => 35,
+            _ when context.IsEveryoneTagged() => 65,
+            _ when context.IsNatsumeTagged() => 100,
             _ => 0
         };
 
@@ -174,11 +173,11 @@ public class NatsumeListeningModule(
             _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 50 => 2,
             _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 250 => 5,
             _ when context.IsNatsumeInterested() is false => 25,
-            _ when context.IsDirectMessage() is true && context.Message.Content.Length < 50 => 3,
-            _ when context.IsDirectMessage() is true && context.Message.Content.Length < 250 => 10,
-            _ when context.IsDirectMessage() is true => 30,
-            _ when context.IsEveryoneTagged() is true => 100,
-            _ when context.IsNatsumeTagged() is true => 100,
+            _ when context.IsDirectMessage() && context.Message.Content.Length < 50 => 3,
+            _ when context.IsDirectMessage() && context.Message.Content.Length < 250 => 10,
+            _ when context.IsDirectMessage() => 30,
+            _ when context.IsEveryoneTagged() => 100,
+            _ when context.IsNatsumeTagged() => 100,
             _ => 0
         };
 

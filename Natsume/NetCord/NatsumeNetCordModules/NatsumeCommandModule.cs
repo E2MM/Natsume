@@ -62,10 +62,40 @@ public class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModule(
     {
         await ExecuteFriendNatsumeCommandAsync(NatsumeImageModel.Dalle3, imageDescription);
     }
-    
+
     [MessageCommand(name: "Natsume-san, reacta!")]
     public async Task ReactAsync(RestMessage restMessage)
     {
         await ExecuteFriendNatsumeReactionsAsync(NatsumeChatModel.Gpt4O, restMessage);
+    }
+
+    [MessageCommand(name: "Natsume-san, ELI5")]
+    public async Task ExplainLikeImFiveAsync(RestMessage restMessage)
+    {
+        var messageContent =
+            $"""
+             Natsume-san, ELI5! 
+             Per favore, spiegami nel mondo più semplice possibile il contenuto del seguente messaggio,
+             assumendo che io non abbia pressoché nessuna conoscenza della materia in oggetto:
+             
+             {restMessage.Content}
+             """;
+        
+        await ExecuteFriendNatsumeCommandAsync(NatsumeChatModel.Gpt4O, messageContent);
+    }
+
+    [MessageCommand(name: "Natsume-san, riassumi")]
+    public async Task SummarizeAsync(RestMessage restMessage)
+    {
+        var messageContent =
+            $"""
+             Natsume-san, per favore, riassumi il seguente messaggio proponendo una sintesi strutturata che
+             evidenzi i punti principali (al massimo tre), e nel modo più sintetico possibile 
+             (non più di due o tre righe per punto):
+
+             {restMessage.Content}
+             """;
+        
+            await ExecuteFriendNatsumeCommandAsync(NatsumeChatModel.Gpt4O, messageContent);
     }
 }

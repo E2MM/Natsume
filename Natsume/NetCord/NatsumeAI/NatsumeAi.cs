@@ -83,7 +83,9 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
 
     public static string ReactionPrompt(string originalMessage) =>
         $"""
-         "Dato il seguente messaggio, rispondi unicamente con le Discord reactions che ritieni più appropriate:
+         "Dato il seguente messaggio, rispondi unicamente con le Discord reactions che ritieni più appropriate,
+         limitandoti ad usare la migliore o al massimo le tre più efficaci, a meno che non sia chiaro dal contesto
+         la necessità di usarne molte (ad esempio per meme o per esplicita richiesta di reactare):
          
          {originalMessage}
          """;

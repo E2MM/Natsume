@@ -3,8 +3,6 @@ using Natsume.OpenAI;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
-using OpenAI.Chat;
-using OpenAI.Images;
 
 namespace Natsume.NetCord.NatsumeAI;
 
@@ -61,7 +59,7 @@ public class NatsumeAiCommandModule(NatsumeAi natsumeAi) : ApplicationCommandMod
 
     protected async Task ExecuteFriendNatsumeCommandAsync(NatsumeChatModel model, string request)
     {
-        await RespondAsync(InteractionCallback.DeferredMessage());
+        await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral));
 
         var completionText = await natsumeAi.GetFriendChatCompletionTextAsync(
             model,
