@@ -27,4 +27,28 @@ public class NatsumeDbService(NatsumeDbContext context)
         context.Contacts.Update(contact);
         return context.SaveChanges() > 0;
     }
+
+    public NatsumeContact? GetNatsumeReminderById(ulong discordId)
+    {
+        return context.Contacts.FirstOrDefault(x => x.DiscordId == discordId);
+    }
+
+    public async Task AddNatsumeReminder(NatsumeReminder reminder)
+    {
+        context.Reminders.Add(reminder);
+        await context.SaveChangesAsync();
+    }
+
+    public List<NatsumeReminder> GetAllExpiredNatsumeReminders()
+    {
+        return context.Reminders
+            .Where(x => x.RemindMeAt <= DateTime.Now)
+            .ToList();
+    }
+
+    public async Task RemoveNatsumeReminders(List<NatsumeReminder> reminders)
+    {
+        context.Reminders.RemoveRange(reminders);
+        await context.SaveChangesAsync();
+    }
 }

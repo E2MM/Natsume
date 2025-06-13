@@ -6,6 +6,7 @@ namespace Natsume.Database;
 public class NatsumeDbContext(DbContextOptions<NatsumeDbContext> options) : DbContext(options)
 {
     public DbSet<NatsumeContact> Contacts { get; set; } = null!;
+    public DbSet<NatsumeReminder> Reminders { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,6 +32,16 @@ public class NatsumeDbContext(DbContextOptions<NatsumeDbContext> options) : DbCo
 
             entity.Property(e => e.TotalFavorExpended)
                 .HasPrecision(precision: 18, scale: 6);
+        });
+
+        modelBuilder.Entity<NatsumeReminder>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            entity.Property(e => e.ReminderText)
+                .IsRequired()
+                .HasMaxLength(512);
+            
         });
     }
 }

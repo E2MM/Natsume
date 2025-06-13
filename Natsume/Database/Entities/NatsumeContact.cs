@@ -1,10 +1,12 @@
+using NetCord;
+
 namespace Natsume.Database.Entities;
 
 public class NatsumeContact
 {
     public ulong DiscordId { get; private set; }
     public bool IsFriend { get; private set; }
-    public string Nickname { get; private set; }
+    public string Nickname { get; private set; } = string.Empty;
     public decimal AvailableFavor { get; private set; }
     public decimal TimeFriendship { get; private set; }
     public decimal ActivityFriendship { get; private set; }
@@ -18,7 +20,6 @@ public class NatsumeContact
 
     private NatsumeContact()
     {
-        
     }
 
     public NatsumeContact(ulong discordId, string nickname)

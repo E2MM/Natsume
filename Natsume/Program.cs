@@ -35,7 +35,7 @@ if (sqliteConnection is null or "") throw new ApplicationException("Invalid SQLi
 builder.Services
     .AddDbContext<NatsumeDbContext>(options =>
         options.UseSqlite(sqliteConnection))//, ServiceLifetime.Singleton)
-    .AddSingleton<NatsumeDbService>();
+    .AddScoped<NatsumeDbService>();
 
 
 builder.Services
@@ -52,7 +52,8 @@ builder.Services
     .AddApplicationCommands<ApplicationCommandInteraction, ApplicationCommandContext>()
     .AddScoped<IOpenAiService, OpenAiService>(_ => new OpenAiService(openAiApiKey))
     .AddScoped<NatsumeAi>()
-    .AddTransient<BondUpInvocable>();
+    .AddTransient<BondUpInvocable>()
+    .AddScoped<RemindMeInvocable>();
 
 var host = builder
     .Build()
@@ -61,7 +62,8 @@ var host = builder
     .AddApplicationCommandModule<NatsumeHqSlashCommandModule>()
     .AddApplicationCommandModule<NatsumeHqSlashCommandModule.NatsumeContactsModule>()
     .AddApplicationCommandModule<NatsumeHqUserCommandModule>()
-    .AddApplicationCommandModule<NatsumeGoogleMeetCommandModule>();
+    .AddApplicationCommandModule<NatsumeGoogleMeetCommandModule>()
+    .AddApplicationCommandModule<NatsumeRemindMeCommandModule>();
 
 // Esegui la migrazione del database all'avvio
 using (var scope = host.Services.CreateScope())
@@ -72,10 +74,15 @@ using (var scope = host.Services.CreateScope())
 
 
 host.Services.UseScheduler(scheduler =>
-    scheduler
-        .Schedule<BondUpInvocable>()
-        .Hourly()
-);
+    {
+        scheduler
+            .Schedule<BondUpInvocable>()
+            .Hourly();
 
+        scheduler
+            .Schedule<RemindMeInvocable>()
+            .EveryMinute();
+    }
+);
 
 await host.RunAsync();

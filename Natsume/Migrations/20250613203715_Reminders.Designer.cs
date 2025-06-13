@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Natsume.Database;
 
@@ -10,9 +11,11 @@ using Natsume.Database;
 namespace Natsume.Migrations
 {
     [DbContext(typeof(NatsumeDbContext))]
-    partial class NatsumeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250613203715_Reminders")]
+    partial class Reminders
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.5");
@@ -78,11 +81,6 @@ namespace Natsume.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("RemindMeAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ReminderText")
-                        .IsRequired()
-                        .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");

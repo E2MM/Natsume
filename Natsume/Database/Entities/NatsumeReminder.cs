@@ -1,0 +1,27 @@
+namespace Natsume.Database.Entities;
+
+public class NatsumeReminder
+{
+    public int Id { get; private set; }
+    public ulong DiscordChannelId { get; private set; }
+    public ulong DiscordMessageId { get; private set; }
+    public DateTime RemindMeAt { get; private set; }
+    public string ReminderText { get; private set; } = string.Empty;
+
+    NatsumeReminder()
+    {
+    }
+
+    public NatsumeReminder(
+        ulong discordChannelId,
+        ulong discordMessageId,
+        DateTime remindMeAt,
+        string reminderText
+    )
+    {
+        DiscordChannelId = discordChannelId;
+        DiscordMessageId = discordMessageId;
+        RemindMeAt = remindMeAt;
+        ReminderText = reminderText;
+    }
+}
