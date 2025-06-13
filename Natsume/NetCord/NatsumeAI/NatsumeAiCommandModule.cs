@@ -92,5 +92,10 @@ public class NatsumeAiCommandModule(NatsumeAi natsumeAi) : ApplicationCommandMod
             await ModifyResponseAsync(m => m.AddAttachments(
                 new AttachmentProperties("image.jpg", completion.generatedImage.ImageBytes.ToStream())));
         }
+
+        if (completion.generatedImage is null && completion.chatCompletion is null)
+        {
+            await ModifyResponseAsync(m => m.WithContent("Scusa sono crashata! 😱"));
+        }
     }
 }

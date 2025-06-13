@@ -1,20 +1,20 @@
 using Coravel.Invocable;
-using Natsume.LiteDB;
+using Natsume.Services;
 
 namespace Natsume.Coravel;
 
-public class BondUpInvocable(LiteDbService liteDbService) : IInvocable
+public class BondUpInvocable(NatsumeDbService natsumeDbService) : IInvocable
 {
     public Task Invoke()
     {
-        var contacts = liteDbService.GetAllNatsumeContacts();
+        var contacts = natsumeDbService.GetAllNatsumeContacts();
 
         foreach (var contact in contacts)
         {
-            if (contact is not { IsNatsumeFriend: true }) continue;
-            if (contact.CurrentFriendship < contact.MaximumFriendship)
+            if (contact is not { IsFriend: true }) continue;
+            if (contact.AvailableFavor < contact.Friendship)
             {
-                liteDbService.UpdateNatsumeContact(contact.BondUp());
+                natsumeDbService.UpdateNatsumeContact(contact.BondUp());
             }
         }
 

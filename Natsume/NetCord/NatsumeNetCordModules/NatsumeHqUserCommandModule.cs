@@ -1,12 +1,13 @@
-using Natsume.LiteDB;
+using Natsume.Database.Entities;
 using Natsume.NetCord.NatsumeAI;
+using Natsume.Services;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
 namespace Natsume.NetCord.NatsumeNetCordModules;
 
-public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi natsumeAi)
+public class NatsumeHqUserCommandModule(NatsumeDbService natsumeDbService, NatsumeAi natsumeAi)
     : NatsumeAiCommandModule(natsumeAi)
 {
     private readonly NatsumeAi _natsumeAi = natsumeAi;
@@ -18,8 +19,8 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
     {
         await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral | MessageFlags.Loading));
 
-        var contact = liteDbService.GetNatsumeContactById(user.Id);
-        if (contact?.IsNatsumeFriend is true)
+        var contact = natsumeDbService.GetNatsumeContactById(user.Id);
+        if (contact?.IsFriend is true)
         {
             await ModifyResponseAsync(m => m
                 .WithContent($"Natsume-san è già amica di {contact.Nickname}!"));
@@ -28,10 +29,10 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
 
         var dmChannel = await user.GetDMChannelAsync();
 
-        if (contact?.IsNatsumeFriend is false)
+        if (contact?.IsFriend is false)
         {
             contact = contact.Befriend();
-            liteDbService.UpdateNatsumeContact(contact);
+            natsumeDbService.UpdateNatsumeContact(contact);
 
             var welcomeBackPrompt =
                 $"""
@@ -57,7 +58,7 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
         }
 
         var newContact = new NatsumeContact(user.Id, user.GetName());
-        liteDbService.AddNatsumeContact(newContact);
+        natsumeDbService.AddNatsumeContact(newContact);
 
         var welcomePrompt =
             $"""
@@ -89,7 +90,7 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
     {
         await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral | MessageFlags.Loading));
 
-        var contact = liteDbService.GetNatsumeContactById(user.Id);
+        var contact = natsumeDbService.GetNatsumeContactById(user.Id);
         if (contact is null)
         {
             await ModifyResponseAsync(m => m
@@ -98,7 +99,7 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
         }
 
         contact = contact.Unfriend();
-        liteDbService.UpdateNatsumeContact(contact);
+        natsumeDbService.UpdateNatsumeContact(contact);
 
         var goodbyePrompt =
             $"""
@@ -129,7 +130,7 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
     {
         await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral | MessageFlags.Loading));
 
-        var contact = liteDbService.GetNatsumeContactById(user.Id);
+        var contact = natsumeDbService.GetNatsumeContactById(user.Id);
         if (contact is null)
         {
             await ModifyResponseAsync(m => m
@@ -139,7 +140,7 @@ public class NatsumeHqUserCommandModule(LiteDbService liteDbService, NatsumeAi n
         }
 
         contact.AwardFriendship(0.1M);
-        liteDbService.UpdateNatsumeContact(contact);
+        natsumeDbService.UpdateNatsumeContact(contact);
 
         var thankYouPrompt =
             $"""

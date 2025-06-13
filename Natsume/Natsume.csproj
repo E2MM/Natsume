@@ -8,12 +8,27 @@
         <PublishAot>false</PublishAot>
         <InvariantGlobalization>true</InvariantGlobalization>
         <UserSecretsId>77669d2c-2bfa-4159-89c2-6279138ca309</UserSecretsId>
+        <Title>Natsume</Title>
+        <Authors>Matteo Musso</Authors>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+      <PlatformTarget>ARM64</PlatformTarget>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <PlatformTarget>ARM64</PlatformTarget>
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Coravel" Version="6.0.1" />
+      <PackageReference Include="Coravel" Version="6.0.2" />
       <PackageReference Include="LiteDB" Version="5.0.21" />
-      <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.5" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.5">
+        <PrivateAssets>all</PrivateAssets>
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      </PackageReference>
+      <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.5" />
       <PackageReference Include="NetCord" Version="1.0.0-alpha.339" />
       <PackageReference Include="NetCord.Hosting" Version="1.0.0-alpha.339" />
       <PackageReference Include="NetCord.Hosting.AspNetCore" Version="1.0.0-alpha.339" />

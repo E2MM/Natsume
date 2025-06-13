@@ -1,12 +1,14 @@
 ﻿using Coravel;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Natsume.Coravel;
-using Natsume.LiteDB;
+using Natsume.Database;
 using Natsume.NetCord.NatsumeAI;
 using Natsume.NetCord.NatsumeNetCordModules;
 using Natsume.OpenAI;
+using Natsume.Services;
 using NetCord;
 using NetCord.Gateway;
 using NetCord.Hosting.Gateway;
@@ -27,6 +29,15 @@ if (openAiApiKey is null or "") throw new ApplicationException("Invalid OpenAI A
 var liteDbConnection = builder.Configuration.GetSection("LiteDB")["ConnectionString"];
 if (liteDbConnection is null or "") throw new ApplicationException("Invalid LiteDB Connection String");
 
+var sqliteConnection = builder.Configuration.GetSection("SQLite")["ConnectionString"];
+if (sqliteConnection is null or "") throw new ApplicationException("Invalid SQLite Connection String");
+
+builder.Services
+    .AddDbContext<NatsumeDbContext>(options =>
+        options.UseSqlite(sqliteConnection))//, ServiceLifetime.Singleton)
+    .AddSingleton<NatsumeDbService>();
+
+
 builder.Services
     .AddScheduler()
     .AddDiscordGateway(options =>
@@ -39,9 +50,8 @@ builder.Services
     })
     .AddGatewayEventHandler<NatsumeListeningModule>()
     .AddApplicationCommands<ApplicationCommandInteraction, ApplicationCommandContext>()
-    .AddSingleton<IOpenAiService, OpenAiService>(_ => new OpenAiService(openAiApiKey))
-    .AddSingleton<LiteDbService>(_ => new LiteDbService(liteDbConnection))
-    .AddSingleton<NatsumeAi>()
+    .AddScoped<IOpenAiService, OpenAiService>(_ => new OpenAiService(openAiApiKey))
+    .AddScoped<NatsumeAi>()
     .AddTransient<BondUpInvocable>();
 
 var host = builder
@@ -50,12 +60,22 @@ var host = builder
     .AddApplicationCommandModule<NatsumeCommandModule>()
     .AddApplicationCommandModule<NatsumeHqSlashCommandModule>()
     .AddApplicationCommandModule<NatsumeHqSlashCommandModule.NatsumeContactsModule>()
-    .AddApplicationCommandModule<NatsumeHqUserCommandModule>();
+    .AddApplicationCommandModule<NatsumeHqUserCommandModule>()
+    .AddApplicationCommandModule<NatsumeGoogleMeetCommandModule>();
+
+// Esegui la migrazione del database all'avvio
+using (var scope = host.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<NatsumeDbContext>();
+    await db.Database.MigrateAsync();
+}
+
 
 host.Services.UseScheduler(scheduler =>
     scheduler
         .Schedule<BondUpInvocable>()
         .Hourly()
 );
+
 
 await host.RunAsync();

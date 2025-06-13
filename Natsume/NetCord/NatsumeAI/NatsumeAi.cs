@@ -1,11 +1,11 @@
-using Natsume.LiteDB;
 using Natsume.OpenAI;
+using Natsume.Services;
 using OpenAI.Chat;
 using OpenAI.Images;
 
 namespace Natsume.NetCord.NatsumeAI;
 
-public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService)
+public class NatsumeAi(IOpenAiService openAiService, NatsumeDbService natsumeDbService)
 {
     [Obsolete("Here to testify Natsume's birth")]
     public static string SystemPromptV1(string contactNickname) =>
@@ -144,7 +144,7 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
         params IEnumerable<(ChatMessageType type, string content)> messages
     )
     {
-        var contact = liteDbService.GetNatsumeContactById(contactId);
+        var contact = natsumeDbService.GetNatsumeContactById(contactId);
         ChatCompletion completion;
         if (contact is null)
         {
@@ -155,7 +155,7 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
             return completion;
         }
 
-        if (contact.IsNatsumeFriend is false)
+        if (contact.IsFriend is false)
         {
             completion = await GetCompletionAsync(
                 NatsumeChatModel.Gpt4O,
@@ -164,7 +164,7 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
             return completion;
         }
 
-        if (contact.CurrentFriendship <= 0M)
+        if (contact.AvailableFavor <= 0M)
         {
             completion = await GetCompletionAsync(
                 NatsumeChatModel.Gpt4O,
@@ -179,7 +179,7 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
             openAiService.CalculateChatCompletionCost(model, completion)
         );
 
-        liteDbService.UpdateNatsumeContact(contact);
+        natsumeDbService.UpdateNatsumeContact(contact);
 
         return completion;
     }
@@ -273,7 +273,7 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
         string imageDescription
     )
     {
-        var contact = liteDbService.GetNatsumeContactById(contactId);
+        var contact = natsumeDbService.GetNatsumeContactById(contactId);
         ChatCompletion completion;
 
         if (contact is null)
@@ -285,7 +285,7 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
             return (completion, null);
         }
 
-        if (contact.IsNatsumeFriend is false)
+        if (contact.IsFriend is false)
         {
             completion = await GetCompletionAsync(
                 NatsumeChatModel.Gpt4O,
@@ -294,7 +294,7 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
             return (completion, null);
         }
 
-        if (contact.CurrentFriendship <= 0M)
+        if (contact.AvailableFavor <= 0M)
         {
             completion = await GetCompletionAsync(
                 NatsumeChatModel.Gpt4O,
@@ -316,7 +316,7 @@ public class NatsumeAi(IOpenAiService openAiService, LiteDbService liteDbService
             )
         );
 
-        liteDbService.UpdateNatsumeContact(contact);
+        natsumeDbService.UpdateNatsumeContact(contact);
 
         return (null, imageCompletion.generatedImage);
     }

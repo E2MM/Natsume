@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.Extensions.DependencyInjection;
 using Natsume.NetCord.NatsumeAI;
 using Natsume.OpenAI;
 using NetCord;
@@ -9,11 +10,20 @@ using NetCord.Rest;
 namespace Natsume.NetCord.NatsumeNetCordModules;
 
 [GatewayEvent(nameof(GatewayClient.MessageCreate))]
-public class NatsumeListeningModule(
-    RestClient client,
-    NatsumeAi natsumeAi) :
-    IGatewayEventHandler<Message>
+public class NatsumeListeningModule : IGatewayEventHandler<Message>
 {
+    private readonly RestClient _client;
+    private readonly NatsumeAi _natsumeAi;
+
+    public NatsumeListeningModule(
+        RestClient client,
+        IServiceProvider serviceProvider)
+    {
+        _client = client;
+        using var scope = serviceProvider.CreateScope();
+        _natsumeAi = scope.ServiceProvider.GetRequiredService<NatsumeAi>();
+    }
+
     private async Task NatsumeStartsTyping(NatsumeListeningContext context)
     {
         if (context.Message.Channel is not null)
@@ -22,7 +32,7 @@ public class NatsumeListeningModule(
             return;
         }
 
-        var channel = await client.GetChannelAsync(context.Message.ChannelId);
+        var channel = await _client.GetChannelAsync(context.Message.ChannelId);
         if (channel is TextChannel textChannel)
             await textChannel.TriggerTypingStateAsync();
         else if (channel is DMChannel dmChannel)
@@ -39,7 +49,7 @@ public class NatsumeListeningModule(
         List<RestMessage> discordMessages = [message];
         while (message.ReferencedMessage is not null && discordMessages.Count < 20)
         {
-            message = await client.GetMessageAsync(message.ChannelId, message.ReferencedMessage.Id);
+            message = await _client.GetMessageAsync(message.ChannelId, message.ReferencedMessage.Id);
             discordMessages.Add(message);
         }
 
@@ -91,7 +101,7 @@ public class NatsumeListeningModule(
         var openAiChatMessages = GenerateChatMessages(context, conversationMessages);
 
         var completion =
-            await natsumeAi.GetFriendChatCompletionAsync(
+            await _natsumeAi.GetFriendChatCompletionAsync(
                 NatsumeChatModel.Gpt4O,
                 context.Message.Author.Id,
                 context.ContactName,
@@ -118,7 +128,7 @@ public class NatsumeListeningModule(
     {
         if (context.IsNatsumeInterested())
         {
-            var reaction = await natsumeAi
+            var reaction = await _natsumeAi
                 .GetFriendChatCompletionReactionsAsync(
                     model: NatsumeChatModel.Gpt4O,
                     contactId: context.Message.Author.Id,
@@ -130,7 +140,7 @@ public class NatsumeListeningModule(
         }
         else
         {
-            var reaction = await natsumeAi
+            var reaction = await _natsumeAi
                 .GetChatCompletionReactionsAsync(
                     model: NatsumeChatModel.Gpt4O,
                     messageContent: context.Message.Content
@@ -145,9 +155,9 @@ public class NatsumeListeningModule(
         var likelihood = context switch
         {
             _ when context.IsOwnMessage() => 0,
-            _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 50 => 0,
-            _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 100 => 1,
-            _ when context.IsNatsumeInterested() is false => 2,
+            _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 100 => 0,
+            _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 350 => 1,
+            _ when context.IsNatsumeInterested() is false => 4,
             _ when context.IsDirectMessage() => 100,
             _ when context.IsEveryoneTagged() && context.Message.Content.Length < 50 => 15,
             _ when context.IsEveryoneTagged() && context.Message.Content.Length < 100 => 35,
@@ -156,7 +166,7 @@ public class NatsumeListeningModule(
             _ => 0
         };
 
-        if (Random.Shared.Next(0, 101) <= likelihood)
+        if (Random.Shared.Next(1, 101) <= likelihood)
         {
             await NatsumeStartsTyping(context);
             var completion = await FetchNatsumeCompletion(context);
@@ -181,7 +191,7 @@ public class NatsumeListeningModule(
             _ => 0
         };
 
-        if (Random.Shared.Next(0, 100) < likelihood)
+        if (Random.Shared.Next(1, 101) < likelihood)
         {
             var reactions = await GetNatsumeReactions(context);
 
@@ -202,6 +212,7 @@ public class NatsumeListeningModule(
         {
             try
             {
+                await Task.Delay(Random.Shared.Next(500, 5000));
                 await context.Message.AddReactionAsync(new ReactionEmojiProperties(discordReaction));
             }
             catch
@@ -220,7 +231,7 @@ public class NatsumeListeningModule(
     {
         try
         {
-            var context = new NatsumeListeningContext(message, await client.GetCurrentUserAsync());
+            var context = new NatsumeListeningContext(message, await _client.GetCurrentUserAsync());
 
             await NatsumeMightReact(context);
             await NatsumeMightReply(context);
