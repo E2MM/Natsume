@@ -48,6 +48,7 @@ public class NatsumeRemindMeCommandModule(NatsumeDbService natsumeDbService)
         NatsumeReminder reminder = new(
             discordChannelId: Context.Channel.Id,
             discordMessageId: reminderAnchorMessage.Id,
+            discordUserId: Context.User.Id,
             remindMeAt: remindMeAt,
             reminderText: reminderText
         );

@@ -1,4 +1,5 @@
 using Coravel.Invocable;
+using Natsume.NetCord.NatsumeNetCordModules;
 using Natsume.Services;
 using NetCord.Rest;
 
@@ -16,12 +17,22 @@ public class RemindMeInvocable(NatsumeDbService natsumeDbService, RestClient cli
             {
                 var originalMessage =
                     await client.GetMessageAsync(reminder.DiscordChannelId, reminder.DiscordMessageId);
+
+                var messageWithoutReminder = new ReplyMessageProperties()
+                    .WithContent($"<@{reminder.DiscordUserId}> Mi avevi chiesto che ti avvisassi in questo momento!");
+
+                var messageWithReminder = new ReplyMessageProperties()
+                    .WithContent(
+                        $"""
+                         <@{reminder.DiscordUserId}> Mi avevi chiesto che ti ricordassi in questo momento 
+                         > {reminder.ReminderText}
+                         """
+                    );
+
                 if (reminder.ReminderText is "")
-                    await originalMessage.ReplyAsync(
-                        $"Mi avevi chiesto che ti avvisassi in questo momento!");
+                    await originalMessage.ReplyAsync(messageWithoutReminder);
                 else
-                    await originalMessage.ReplyAsync(
-                        $"Mi avevi chiesto che ti ricordassi in questo momento \"{reminder.ReminderText}\"!");
+                    await originalMessage.ReplyAsync(messageWithReminder);
             }
 
             await natsumeDbService.RemoveNatsumeReminders(reminders);
