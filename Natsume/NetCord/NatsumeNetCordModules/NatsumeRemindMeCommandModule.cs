@@ -12,7 +12,7 @@ public class NatsumeRemindMeCommandModule(NatsumeDbService natsumeDbService)
 {
     [SlashCommand(
         name: "remindme",
-        description: "Ricordami di fare qualcosa in un certo momento!",
+        description: "Ricordami qualcosa fra un po' di tempo!",
         Contexts =
         [
             InteractionContextType.Guild,
@@ -21,13 +21,13 @@ public class NatsumeRemindMeCommandModule(NatsumeDbService natsumeDbService)
         ]
     )]
     public async Task RemindMe(
-        [SlashCommandParameter(Name = "promemoria"), MaxLength(512)]
+        [SlashCommandParameter(Name = "promemoria", Description = "testo del promemoria"), MaxLength(512)]
         string reminderText = "",
-        [SlashCommandParameter(Name = "giorni", MinValue = 0)]
+        [SlashCommandParameter(Name = "giorni", Description = "fra quanti giorni", MinValue = 0)]
         int days = 0,
-        [SlashCommandParameter(Name = "ore", MinValue = 0)]
+        [SlashCommandParameter(Name = "ore", Description = "fra quante ore", MinValue = 0)]
         int hours = 0,
-        [SlashCommandParameter(Name = "minuti", MinValue = 0)]
+        [SlashCommandParameter(Name = "minuti", Description = "fra quanti minuti", MinValue = 0)]
         int minutes = 1
     )
     {
@@ -36,10 +36,8 @@ public class NatsumeRemindMeCommandModule(NatsumeDbService natsumeDbService)
             .AddHours(hours)
             .AddMinutes(minutes);
 
-        var reminderAnchorMessageContent =
-            reminderText is ""
-                ? $"Ok, ti manderò un reminder il {remindMeAt:dd/MM/yyyy} alle {remindMeAt:HH:mm}!"
-                : $"Ok, ti ricorderò \"{reminderText}\" il {remindMeAt:dd/MM/yyyy} alle {remindMeAt:HH:mm}!";
+        var reminderAnchorMessageContent = new InteractionMessageProperties()
+            .WithContent($"Ok, ti manderò un reminder il {remindMeAt:dd/MM/yyyy} alle {remindMeAt:HH:mm}!");
 
         await RespondAsync(InteractionCallback.Message(reminderAnchorMessageContent));
 
