@@ -1,11 +1,10 @@
 using Coravel.Invocable;
-using Natsume.NetCord.NatsumeNetCordModules;
 using Natsume.Services;
 using NetCord.Rest;
 
 namespace Natsume.Coravel;
 
-public class RemindMeInvocable(NatsumeDbService natsumeDbService, RestClient client) : IInvocable
+internal class RemindMeInvocable(NatsumeDbService natsumeDbService, RestClient client) : IInvocable
 {
     public async Task Invoke()
     {

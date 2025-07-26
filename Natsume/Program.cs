@@ -1,4 +1,5 @@
 ﻿using Coravel;
+using Coravel.Scheduling.Schedule.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,7 @@ using Natsume.NetCord.NatsumeAI;
 using Natsume.NetCord.NatsumeNetCordModules;
 using Natsume.OpenAI;
 using Natsume.Services;
+using Natsume.Utils;
 using NetCord;
 using NetCord.Gateway;
 using NetCord.Hosting.Gateway;
@@ -17,43 +19,30 @@ using NetCord.Services.ApplicationCommands;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-builder.Configuration
-    .AddUserSecrets<Program>();
+builder.Configuration.AddUserSecrets<Program>();
 
-var discordToken = builder.Configuration.GetSection("Discord")["Token"];
-if (discordToken is null or "") throw new ApplicationException("Invalid Discord Token");
+var discordToken = builder.Configuration.GetValueOrThrow("Discord", "Token");
+var openAiApiKey = builder.Configuration.GetValueOrThrow("OpenAI", "ApiKey");
+var sqliteConnection = builder.Configuration.GetValueOrThrow("SQLite", "ConnectionString");
 
-var openAiApiKey = builder.Configuration.GetSection("OpenAI")["ApiKey"];
-if (openAiApiKey is null or "") throw new ApplicationException("Invalid OpenAI Api Key");
-
-var liteDbConnection = builder.Configuration.GetSection("LiteDB")["ConnectionString"];
-if (liteDbConnection is null or "") throw new ApplicationException("Invalid LiteDB Connection String");
-
-var sqliteConnection = builder.Configuration.GetSection("SQLite")["ConnectionString"];
-if (sqliteConnection is null or "") throw new ApplicationException("Invalid SQLite Connection String");
-
-builder.Services
-    .AddDbContext<NatsumeDbContext>(options =>
-        options.UseSqlite(sqliteConnection))//, ServiceLifetime.Singleton)
-    .AddScoped<NatsumeDbService>();
-
+builder.AddDbServices(sqliteConnection);
+builder.AddInvocableServices();
 
 builder.Services
     .AddScheduler()
     .AddDiscordGateway(options =>
-    {
-        options.Token = discordToken;
-        options.Intents =
-            GatewayIntents.GuildMessages
-            | GatewayIntents.DirectMessages
-            | GatewayIntents.MessageContent;
-    })
+        {
+            options.Token = discordToken;
+            options.Intents =
+                GatewayIntents.GuildMessages
+                | GatewayIntents.DirectMessages
+                | GatewayIntents.MessageContent;
+        }
+    )
     .AddGatewayEventHandler<NatsumeListeningModule>()
     .AddApplicationCommands<ApplicationCommandInteraction, ApplicationCommandContext>()
     .AddScoped<IOpenAiService, OpenAiService>(_ => new OpenAiService(openAiApiKey))
-    .AddScoped<NatsumeAi>()
-    .AddTransient<BondUpInvocable>()
-    .AddScoped<RemindMeInvocable>();
+    .AddScoped<NatsumeAi>();
 
 var host = builder
     .Build()
@@ -65,24 +54,31 @@ var host = builder
     .AddApplicationCommandModule<NatsumeGoogleMeetCommandModule>()
     .AddApplicationCommandModule<NatsumeRemindMeCommandModule>();
 
-// Esegui la migrazione del database all'avvio
-using (var scope = host.Services.CreateScope())
+UseScheduledInvocableServices();
+var cts = new CancellationTokenSource();
+await MigrateDatabaseAsync(cts.Token);
+await host.RunAsync(cts.Token);
+
+return;
+
+async Task MigrateDatabaseAsync(CancellationToken token)
 {
+    using var scope = host.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<NatsumeDbContext>();
-    await db.Database.MigrateAsync();
+    await db.Database.MigrateAsync(token);
 }
 
+ISchedulerConfiguration UseScheduledInvocableServices()
+{
+    return host.Services.UseScheduler(scheduler =>
+        {
+            scheduler
+                .Schedule<BondUpInvocable>()
+                .Hourly();
 
-host.Services.UseScheduler(scheduler =>
-    {
-        scheduler
-            .Schedule<BondUpInvocable>()
-            .Hourly();
-
-        scheduler
-            .Schedule<RemindMeInvocable>()
-            .EveryMinute();
-    }
-);
-
-await host.RunAsync();
+            scheduler
+                .Schedule<RemindMeInvocable>()
+                .EveryMinute();
+        }
+    );
+}

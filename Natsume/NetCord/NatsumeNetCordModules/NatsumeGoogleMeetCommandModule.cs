@@ -1,24 +1,73 @@
+using System.Text;
+using Natsume.Database.Entities;
+using Natsume.Services;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
 namespace Natsume.NetCord.NatsumeNetCordModules;
 
-public class NatsumeGoogleMeetCommandModule : ApplicationCommandModule<ApplicationCommandContext>
+internal class NatsumeGoogleMeetCommandModule(NatsumeDbService natsumeDbService)
+    : ApplicationCommandModule<ApplicationCommandContext>
 {
-    [SlashCommand("meet", "Creates a new Meet on Google Meet",
-        Contexts =
+    [
+        SlashCommand(
+            name: "meet",
+            description: "Creates a new Meet on Google Meet",
+            Contexts =
+            [
+                InteractionContextType.Guild,
+                InteractionContextType.BotDMChannel,
+                InteractionContextType.DMChannel
+            ]
+        )
+    ]
+    public async Task SendNewMeetLink(
         [
-            InteractionContextType.Guild,
-            InteractionContextType.BotDMChannel,
-            InteractionContextType.DMChannel
-        ])]
-    public async Task SendNewMeetLink(string meetingName = "")
+            SlashCommandParameter(
+                Name = "nome",
+                Description = "indica il nome con cui il meeting verrà creato",
+                MaxLength = 32)
+        ]
+        string meetingName = ""
+    )
     {
-        meetingName = string.IsNullOrWhiteSpace(meetingName)
-            ? Guid.NewGuid().ToString()
-            : new string(meetingName.AsEnumerable().Where(x => x < 127 && x != ' ').ToArray());
+        var sanitizedMeetingName = SanitizeMeetingName(meetingName);
+        var isRandomMeeting = string.IsNullOrWhiteSpace(sanitizedMeetingName);
 
-        await RespondAsync(InteractionCallback.Message($"https://g.co/meet/{meetingName}"));
+        try
+        {
+            if (isRandomMeeting)
+            {
+                var meetingCount = await natsumeDbService.GetMeetingCountAsync();
+                sanitizedMeetingName = $"random-meeting-numero-{meetingCount + 1}";
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
+
+        await RespondAsync(InteractionCallback.Message($"https://g.co/meet/{sanitizedMeetingName}"));
+
+        var newMeeting = new NatsumeMeeting
+        (
+            meetingName: sanitizedMeetingName,
+            discordUserId: Context.User.Id,
+            isRandomMeeting: isRandomMeeting
+        );
+        
+        await natsumeDbService.AddMeetingAsync(meeting: newMeeting);
+    }
+
+    private static string SanitizeMeetingName(string meetingName)
+    {
+        var sb = new StringBuilder(capacity: meetingName.Length);
+        foreach (var c in meetingName.Trim())
+        {
+            sb.Append(char.IsAsciiLetterOrDigit(c) ? c : '-');
+        }
+        
+        return sb.ToString();
     }
 }

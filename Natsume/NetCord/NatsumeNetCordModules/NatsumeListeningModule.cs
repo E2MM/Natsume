@@ -10,20 +10,10 @@ using NetCord.Rest;
 namespace Natsume.NetCord.NatsumeNetCordModules;
 
 [GatewayEvent(nameof(GatewayClient.MessageCreate))]
-public class NatsumeListeningModule : IGatewayEventHandler<Message>
+public class NatsumeListeningModule(
+    RestClient client,
+    IServiceProvider serviceProvider) : IGatewayEventHandler<Message>
 {
-    private readonly RestClient _client;
-    private readonly NatsumeAi _natsumeAi;
-
-    public NatsumeListeningModule(
-        RestClient client,
-        IServiceProvider serviceProvider)
-    {
-        _client = client;
-        using var scope = serviceProvider.CreateScope();
-        _natsumeAi = scope.ServiceProvider.GetRequiredService<NatsumeAi>();
-    }
-
     private async Task NatsumeStartsTyping(NatsumeListeningContext context)
     {
         if (context.Message.Channel is not null)
@@ -32,7 +22,7 @@ public class NatsumeListeningModule : IGatewayEventHandler<Message>
             return;
         }
 
-        var channel = await _client.GetChannelAsync(context.Message.ChannelId);
+        var channel = await client.GetChannelAsync(context.Message.ChannelId);
         if (channel is TextChannel textChannel)
             await textChannel.TriggerTypingStateAsync();
         else if (channel is DMChannel dmChannel)
@@ -49,7 +39,7 @@ public class NatsumeListeningModule : IGatewayEventHandler<Message>
         List<RestMessage> discordMessages = [message];
         while (message.ReferencedMessage is not null && discordMessages.Count < 20)
         {
-            message = await _client.GetMessageAsync(message.ChannelId, message.ReferencedMessage.Id);
+            message = await client.GetMessageAsync(message.ChannelId, message.ReferencedMessage.Id);
             discordMessages.Add(message);
         }
 
@@ -101,7 +91,7 @@ public class NatsumeListeningModule : IGatewayEventHandler<Message>
         var openAiChatMessages = GenerateChatMessages(context, conversationMessages);
 
         var completion =
-            await _natsumeAi.GetFriendChatCompletionAsync(
+            await context.NatsumeAi.GetFriendChatCompletionAsync(
                 NatsumeChatModel.Gpt4O,
                 context.Message.Author.Id,
                 context.ContactName,
@@ -128,7 +118,7 @@ public class NatsumeListeningModule : IGatewayEventHandler<Message>
     {
         if (context.IsNatsumeInterested())
         {
-            var reaction = await _natsumeAi
+            var reaction = await context.NatsumeAi
                 .GetFriendChatCompletionReactionsAsync(
                     model: NatsumeChatModel.Gpt4O,
                     contactId: context.Message.Author.Id,
@@ -140,7 +130,7 @@ public class NatsumeListeningModule : IGatewayEventHandler<Message>
         }
         else
         {
-            var reaction = await _natsumeAi
+            var reaction = await context.NatsumeAi
                 .GetChatCompletionReactionsAsync(
                     model: NatsumeChatModel.Gpt4O,
                     messageContent: context.Message.Content
@@ -231,7 +221,9 @@ public class NatsumeListeningModule : IGatewayEventHandler<Message>
     {
         try
         {
-            var context = new NatsumeListeningContext(message, await _client.GetCurrentUserAsync());
+            using var scope = serviceProvider.CreateScope();
+            var natsumeAi = scope.ServiceProvider.GetRequiredService<NatsumeAi>();
+            var context = new NatsumeListeningContext(natsumeAi, message, await client.GetCurrentUserAsync());
 
             await NatsumeMightReact(context);
             await NatsumeMightReply(context);

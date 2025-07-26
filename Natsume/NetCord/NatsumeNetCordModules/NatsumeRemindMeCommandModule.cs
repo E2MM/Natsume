@@ -7,7 +7,7 @@ using NetCord.Services.ApplicationCommands;
 
 namespace Natsume.NetCord.NatsumeNetCordModules;
 
-public class NatsumeRemindMeCommandModule(NatsumeDbService natsumeDbService)
+internal class NatsumeRemindMeCommandModule(NatsumeDbService natsumeDbService)
     : ApplicationCommandModule<ApplicationCommandContext>
 {
     [SlashCommand(

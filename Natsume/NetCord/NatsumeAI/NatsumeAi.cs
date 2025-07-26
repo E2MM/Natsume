@@ -1,3 +1,4 @@
+using Natsume.Database.Services;
 using Natsume.OpenAI;
 using Natsume.Services;
 using OpenAI.Chat;
@@ -5,7 +6,10 @@ using OpenAI.Images;
 
 namespace Natsume.NetCord.NatsumeAI;
 
-public class NatsumeAi(IOpenAiService openAiService, NatsumeDbService natsumeDbService)
+public class NatsumeAi(
+    IOpenAiService openAiService, 
+    NatsumeDbService natsumeDbService,
+    NatsumeContactService natsumeContactService)
 {
     [Obsolete("Here to testify Natsume's birth")]
     public static string SystemPromptV1(string contactNickname) =>
@@ -144,7 +148,7 @@ public class NatsumeAi(IOpenAiService openAiService, NatsumeDbService natsumeDbS
         params IEnumerable<(ChatMessageType type, string content)> messages
     )
     {
-        var contact = natsumeDbService.GetNatsumeContactById(contactId);
+        var contact = await natsumeContactService.GetNatsumeContactByIdAsync(contactId);
         ChatCompletion completion;
         if (contact is null)
         {
@@ -164,7 +168,7 @@ public class NatsumeAi(IOpenAiService openAiService, NatsumeDbService natsumeDbS
             return completion;
         }
 
-        if (contact.AvailableFavor <= 0M)
+        if (contact.CurrentFavor <= 0M)
         {
             completion = await GetCompletionAsync(
                 NatsumeChatModel.Gpt4O,
@@ -179,7 +183,7 @@ public class NatsumeAi(IOpenAiService openAiService, NatsumeDbService natsumeDbS
             openAiService.CalculateChatCompletionCost(model, completion)
         );
 
-        natsumeDbService.UpdateNatsumeContact(contact);
+        await natsumeContactService.UpdateNatsumeContactsAsync(contacts: contact);
 
         return completion;
     }
@@ -273,7 +277,7 @@ public class NatsumeAi(IOpenAiService openAiService, NatsumeDbService natsumeDbS
         string imageDescription
     )
     {
-        var contact = natsumeDbService.GetNatsumeContactById(contactId);
+        var contact = await natsumeContactService.GetNatsumeContactByIdAsync(contactId);
         ChatCompletion completion;
 
         if (contact is null)
@@ -294,7 +298,7 @@ public class NatsumeAi(IOpenAiService openAiService, NatsumeDbService natsumeDbS
             return (completion, null);
         }
 
-        if (contact.AvailableFavor <= 0M)
+        if (contact.CurrentFavor <= 0M)
         {
             completion = await GetCompletionAsync(
                 NatsumeChatModel.Gpt4O,
@@ -316,7 +320,7 @@ public class NatsumeAi(IOpenAiService openAiService, NatsumeDbService natsumeDbS
             )
         );
 
-        natsumeDbService.UpdateNatsumeContact(contact);
+        await natsumeContactService.UpdateNatsumeContactsAsync(contacts: contact);
 
         return (null, imageCompletion.generatedImage);
     }

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Natsume.Database;
 using Natsume.Database.Entities;
 
@@ -5,29 +6,6 @@ namespace Natsume.Services;
 
 public class NatsumeDbService(NatsumeDbContext context)
 {
-    public List<NatsumeContact> GetAllNatsumeContacts()
-    {
-        return context.Contacts.ToList();
-    }
-
-    public NatsumeContact? AddNatsumeContact(NatsumeContact contact)
-    {
-        context.Contacts.Add(contact);
-        context.SaveChanges();
-        return GetNatsumeContactById(contact.DiscordId);
-    }
-
-    public NatsumeContact? GetNatsumeContactById(ulong discordId)
-    {
-        return context.Contacts.FirstOrDefault(x => x.DiscordId == discordId);
-    }
-
-    public bool UpdateNatsumeContact(NatsumeContact contact)
-    {
-        context.Contacts.Update(contact);
-        return context.SaveChanges() > 0;
-    }
-
     public NatsumeContact? GetNatsumeReminderById(ulong discordId)
     {
         return context.Contacts.FirstOrDefault(x => x.DiscordId == discordId);
@@ -50,5 +28,22 @@ public class NatsumeDbService(NatsumeDbContext context)
     {
         context.Reminders.RemoveRange(reminders);
         await context.SaveChangesAsync();
+    }
+
+    public Task<int> GetMeetingCountAsync(CancellationToken token = default)
+    {
+        return context
+            .Meetings
+            .AsNoTracking()
+            .CountAsync(
+                predicate: m => m.IsRandomMeeting,
+                cancellationToken: token
+            );
+    }
+
+    internal Task<int> AddMeetingAsync(NatsumeMeeting meeting, CancellationToken token = default)
+    {
+        context.Meetings.Add(entity: meeting);
+        return context.SaveChangesAsync();
     }
 }

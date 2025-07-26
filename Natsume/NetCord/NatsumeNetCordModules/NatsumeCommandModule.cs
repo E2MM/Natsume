@@ -4,7 +4,7 @@ using NetCord.Services.ApplicationCommands;
 
 namespace Natsume.NetCord.NatsumeNetCordModules;
 
-public class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModule(natsumeAi)
+internal class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModule(natsumeAi)
 {
     [SlashCommand(name: "chat", description: "Chatta con Natsume-san!")]
     public async Task ChatAsync(

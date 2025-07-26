@@ -1,72 +1,64 @@
-using Natsume.Database.Entities;
+using Natsume.Database.Services;
 using Natsume.NetCord.NatsumeAI;
-using Natsume.Services;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
 namespace Natsume.NetCord.NatsumeNetCordModules;
 
-public class NatsumeHqUserCommandModule(NatsumeDbService natsumeDbService, NatsumeAi natsumeAi)
-    : NatsumeAiCommandModule(natsumeAi)
+public class NatsumeHqUserCommandModule(
+    NatsumeContactService natsumeContactService,
+    NatsumeAi natsumeAi
+) : NatsumeAiCommandModule(natsumeAi)
 {
     private readonly NatsumeAi _natsumeAi = natsumeAi;
 
-    [UserCommand(name: "Presentami a Natsume-san!",
-        DefaultGuildUserPermissions = Permissions.Administrator,
-        Contexts = [InteractionContextType.Guild, InteractionContextType.DMChannel])]
-    public async Task BefriendNatsume(User user)
+    [
+        UserCommand(
+            name: "Presentami a Natsume-san!",
+            DefaultGuildUserPermissions = Permissions.Administrator,
+            Contexts = [InteractionContextType.Guild, InteractionContextType.DMChannel]
+        )
+    ]
+    public async Task MeetNatsume(User user)
     {
-        await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral | MessageFlags.Loading));
+        var cts = new CancellationTokenSource(delay: TimeSpan.FromSeconds(10));
 
-        var contact = natsumeDbService.GetNatsumeContactById(user.Id);
-        if (contact?.IsFriend is true)
+        await RespondAsync(
+            callback: InteractionCallback.DeferredMessage(flags: MessageFlags.Ephemeral | MessageFlags.Loading),
+            cancellationToken: cts.Token
+        );
+
+        var contact = await natsumeContactService.GetNatsumeContactByIdAsync(
+            discordId: user.Id,
+            cancellationToken: cts.Token
+        );
+
+        if (contact is not null)
         {
-            await ModifyResponseAsync(m => m
-                .WithContent($"Natsume-san è già amica di {contact.Nickname}!"));
-            return;
-        }
-
-        var dmChannel = await user.GetDMChannelAsync();
-
-        if (contact?.IsFriend is false)
-        {
-            contact = contact.Befriend();
-            natsumeDbService.UpdateNatsumeContact(contact);
-
-            var welcomeBackPrompt =
-                $"""
-                 Scrivi un breve messaggio in chat di bentornato a {contact.Nickname}!
-                 Usa anche espressioni tipicamente giapponesi!
-                 Ricorda a {contact.Nickname} che quando ha bisogno può sempre scriverti!
-                 Approfittane per suggerire a {contact.Nickname} di studiare una tecnologia di 
-                 programmazione a tua scelta!
-                 """;
-
-            var welcomeBack = await _natsumeAi.GetChatCompletionTextAsync(
-                NatsumeChatModel.Gpt4O,
-                ContactNickname,
-                welcomeBackPrompt
+            await ModifyResponseAsync(
+                action: m => m.WithContent($"Natsume-san conosce già {contact.DiscordNickname}!"),
+                cancellationToken: cts.Token
             );
 
-            await dmChannel.SendMessageAsync(new MessageProperties()
-                .WithContent(welcomeBack));
-
-            await ModifyResponseAsync(m => m
-                .WithContent($"Natsume-san ha riabbracciato {contact.Nickname}!"));
             return;
         }
 
-        var newContact = new NatsumeContact(user.Id, user.GetName());
-        natsumeDbService.AddNatsumeContact(newContact);
+        var dmChannel = await user.GetDMChannelAsync(cancellationToken: cts.Token);
+
+        var newContact = await natsumeContactService.AddNatsumeContactAsync(
+            discordId: user.Id,
+            discordNickname: user.GetName(),
+            cancellationToken: cts.Token
+        );
 
         var welcomePrompt =
             $"""
-             Scrivi un breve messaggio in chat in cui ti presenti a {newContact.Nickname},
+             Scrivi un breve messaggio in chat in cui ti presenti a {newContact.DiscordNickname},
              usando anche espressioni tipiche giapponesi.
              Aggiungi che quando ha bisogno può sempre scriverti e che speri andrete d'accordo e che
-             {newContact.Nickname} sia gentile con te.
-             Approfittane per chiedere a {newContact.Nickname} se ha mai studiato una tecnologia di programmazione 
+             {newContact.DiscordNickname} sia gentile con te.
+             Approfittane per chiedere a {newContact.DiscordNickname} se ha mai studiato una tecnologia di programmazione 
              a tua scelta!
              """;
 
@@ -76,37 +68,146 @@ public class NatsumeHqUserCommandModule(NatsumeDbService natsumeDbService, Natsu
             welcomePrompt
         );
 
-        await dmChannel.SendMessageAsync(new MessageProperties()
-            .WithContent(welcome));
+        await dmChannel.SendMessageAsync(
+            message: new MessageProperties().WithContent(content: welcome),
+            cancellationToken: cts.Token
+        );
 
-        await ModifyResponseAsync(m => m
-            .WithContent($"Natsume-san e {newContact.Nickname} hanno stretto amicizia!"));
+        await ModifyResponseAsync(
+            action: m => m.WithContent($"Natsume-san e {newContact.DiscordNickname} hanno stretto amicizia!"),
+            cancellationToken: cts.Token
+        );
     }
 
-    [UserCommand(name: "Dì addio a Natsume-san",
+    [
+        UserCommand(
+            name: "Fai amicizia con Natsume-san!",
+            DefaultGuildUserPermissions = Permissions.Administrator,
+            Contexts = [InteractionContextType.Guild, InteractionContextType.DMChannel]
+        )
+    ]
+    public async Task BefriendNatsume(User user)
+    {
+        var cts = new CancellationTokenSource(delay: TimeSpan.FromSeconds(10));
+
+        await RespondAsync(
+            callback: InteractionCallback.DeferredMessage(flags: MessageFlags.Ephemeral | MessageFlags.Loading),
+            cancellationToken: cts.Token
+        );
+
+        var contact = await natsumeContactService.GetNatsumeContactByIdAsync(
+            discordId: user.Id,
+            cancellationToken: cts.Token
+        );
+
+        if (contact is null)
+        {
+            await ModifyResponseAsync(
+                action: m =>
+                    m.WithContent($"Natsume-san non conosce affatto {user.GetName()}!"),
+                cancellationToken: cts.Token
+            );
+
+            return;
+        }
+
+        if (contact is { IsFriend: true })
+        {
+            await ModifyResponseAsync(
+                action: m =>
+                    m.WithContent($"Natsume-san è già amica di {contact.DiscordNickname}!"),
+                cancellationToken: cts.Token
+            );
+
+            return;
+        }
+
+        var dmChannel = await user.GetDMChannelAsync(cancellationToken: cts.Token);
+
+        await natsumeContactService.UpdateNatsumeContactsAsync(
+            contacts: contact.Befriend(),
+            cancellationToken: cts.Token
+        );
+
+        var welcomeBackPrompt =
+            $"""
+             Scrivi un breve messaggio in chat di bentornato a {contact.DiscordNickname}!
+             Usa anche espressioni tipicamente giapponesi!
+             Ricorda a {contact.DiscordNickname} che quando ha bisogno può sempre scriverti!
+             Approfittane per suggerire a {contact.DiscordNickname} di studiare una tecnologia di 
+             programmazione a tua scelta!
+             """;
+
+        var welcomeBack = await _natsumeAi.GetChatCompletionTextAsync(
+            NatsumeChatModel.Gpt4O,
+            ContactNickname,
+            welcomeBackPrompt
+        );
+
+        await dmChannel.SendMessageAsync(
+            message: new MessageProperties().WithContent(welcomeBack),
+            cancellationToken: cts.Token
+        );
+
+        await ModifyResponseAsync(
+            action: m => m
+                .WithContent($"Natsume-san ha riabbracciato {contact.DiscordNickname}!"),
+            cancellationToken: cts.Token
+        );
+    }
+
+    [UserCommand(name: "Litiga con Natsume-san",
         DefaultGuildUserPermissions = Permissions.Administrator,
         Contexts = [InteractionContextType.Guild, InteractionContextType.DMChannel])]
     public async Task UnfriendNatsume(User user)
     {
-        await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral | MessageFlags.Loading));
+        var cts = new CancellationTokenSource(delay: TimeSpan.FromSeconds(10));
 
-        var contact = natsumeDbService.GetNatsumeContactById(user.Id);
+        await RespondAsync(
+            callback: InteractionCallback.DeferredMessage(flags: MessageFlags.Ephemeral | MessageFlags.Loading),
+            cancellationToken: cts.Token
+        );
+
+        var contact = await natsumeContactService.GetNatsumeContactByIdAsync(
+            discordId: user.Id,
+            cancellationToken: cts.Token
+        );
+
         if (contact is null)
         {
-            await ModifyResponseAsync(m => m
-                .WithContent($"Natsume-san non conosce affatto {user.GlobalName ?? user.Username}!"));
+            await ModifyResponseAsync(
+                action: m =>
+                    m.WithContent($"Natsume-san non conosce affatto {user.GetName()}!"),
+                cancellationToken: cts.Token
+            );
+
             return;
         }
 
-        contact = contact.Unfriend();
-        natsumeDbService.UpdateNatsumeContact(contact);
+        if (contact is { IsFriend: false })
+        {
+            await ModifyResponseAsync(
+                action: m =>
+                    m.WithContent($"Natsume-san è già arrabbiata con {contact.DiscordNickname}!"),
+                cancellationToken: cts.Token
+            );
+
+            return;
+        }
+
+        var dmChannel = await user.GetDMChannelAsync(cancellationToken: cts.Token);
+
+        await natsumeContactService.UpdateNatsumeContactsAsync(
+            contacts: contact.Unfriend(),
+            cancellationToken: cts.Token
+        );
 
         var goodbyePrompt =
             $"""
-             Scrivi un breve messaggio in chat di addio a {contact.Nickname}!
+             Scrivi un breve messaggio in chat di addio a {contact.DiscordNickname}!
              Usa anche espressioni tipicamente giapponesi!
-             Ringrazia {contact.Nickname} per tutti i messaggi che vi siete scritti.
-             Augura a {contact.Nickname} buona fortuna e dì che speri vi incontrerete ancora
+             Ringrazia {contact.DiscordNickname} per tutti i messaggi che vi siete scritti.
+             Augura a {contact.DiscordNickname} buona fortuna e dì che speri vi incontrerete ancora
              """;
 
         var goodbye = await _natsumeAi.GetChatCompletionTextAsync(
@@ -115,50 +216,15 @@ public class NatsumeHqUserCommandModule(NatsumeDbService natsumeDbService, Natsu
             goodbyePrompt
         );
 
-        var dmChannel = await user.GetDMChannelAsync();
-        await dmChannel.SendMessageAsync(new MessageProperties()
-            .WithContent(goodbye));
-
-        await ModifyResponseAsync(m => m
-            .WithContent($"Natsume-san ha detto addio a {contact.Nickname}"));
-    }
-
-    [UserCommand(name: "Fai un regalino a Natsume-san!",
-        DefaultGuildUserPermissions = Permissions.Administrator,
-        Contexts = [InteractionContextType.Guild, InteractionContextType.DMChannel])]
-    public async Task TipNatsume(User user)
-    {
-        await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral | MessageFlags.Loading));
-
-        var contact = natsumeDbService.GetNatsumeContactById(user.Id);
-        if (contact is null)
-        {
-            await ModifyResponseAsync(m => m
-                .WithContent(
-                    $"Natsume-san non conosce {user.GetName()}! Non può accettare regalini da sconosciuti"));
-            return;
-        }
-
-        contact.AwardFriendship(0.1M);
-        natsumeDbService.UpdateNatsumeContact(contact);
-
-        var thankYouPrompt =
-            $"""
-             Scrivi un breve messaggio in chat a {contact.Nickname} per ringraziare del regalino!
-             E' super kawaiii!
-             """;
-
-        var thankYou = await _natsumeAi.GetChatCompletionTextAsync(
-            NatsumeChatModel.Gpt4O,
-            ContactNickname,
-            thankYouPrompt
+        await dmChannel.SendMessageAsync(
+            message: new MessageProperties().WithContent(goodbye),
+            cancellationToken: cts.Token
         );
 
-        var dmChannel = await user.GetDMChannelAsync();
-        await dmChannel.SendMessageAsync(new MessageProperties()
-            .WithContent(thankYou));
-
-        await ModifyResponseAsync(m => m
-            .WithContent($"Natsume-san è così felice del regalino ricevuto da {contact.Nickname}!"));
+        await ModifyResponseAsync(
+            action: m => m
+                .WithContent($"Natsume-san ora tiene il broncio con {contact.DiscordNickname}"),
+            cancellationToken: cts.Token
+        );
     }
 }

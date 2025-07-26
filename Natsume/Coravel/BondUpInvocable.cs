@@ -1,23 +1,37 @@
 using Coravel.Invocable;
-using Natsume.Services;
+using Natsume.Database.Services;
 
 namespace Natsume.Coravel;
 
-public class BondUpInvocable(NatsumeDbService natsumeDbService) : IInvocable
+internal class BondUpInvocable(NatsumeContactService natsumeContactService) : IInvocable
 {
-    public Task Invoke()
+    public async Task Invoke()
     {
-        var contacts = natsumeDbService.GetAllNatsumeContacts();
-
-        foreach (var contact in contacts)
+        try
         {
-            if (contact is not { IsFriend: true }) continue;
-            if (contact.AvailableFavor < contact.Friendship)
-            {
-                natsumeDbService.UpdateNatsumeContact(contact.BondUp());
-            }
-        }
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
-        return Task.CompletedTask;
+            var contacts = await natsumeContactService.GetAllNatsumeContactsAsync(
+                cancellationToken: cts.Token
+            );
+
+            foreach (var contact in contacts)
+            {
+                if (contact.IsFriend is false) continue;
+                if (contact.CurrentFavor < contact.MaximumFavor)
+                {
+                    contact.BondUp();
+                }
+            }
+
+            await natsumeContactService.UpdateNatsumeContactsAsync(
+                contacts: contacts,
+                cancellationToken: cts.Token
+            );
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
     }
 }
