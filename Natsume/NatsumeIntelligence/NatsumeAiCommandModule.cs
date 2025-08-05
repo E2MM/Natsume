@@ -1,30 +1,32 @@
 using System.Globalization;
+using Natsume.NatsumeIntelligence.ImageGeneration;
+using Natsume.NatsumeIntelligence.TextGeneration;
 using Natsume.OpenAI;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
-namespace Natsume.NetCord.NatsumeAI;
+namespace Natsume.NatsumeIntelligence;
 
 public class NatsumeAiCommandModule(NatsumeAi natsumeAi) : ApplicationCommandModule<ApplicationCommandContext>
 {
     public string ContactNickname => Context.User.GlobalName ?? Context.User.Username;
 
-    protected async Task ExecuteNatsumeCommandAsync(NatsumeChatModel model, string request)
+    protected async Task ExecuteNatsumeCommandAsync(TextModel aiModel, string request)
     {
         await RespondAsync(InteractionCallback.DeferredMessage());
-        var response = await natsumeAi.GetChatCompletionTextAsync(model, ContactNickname, request);
+        var response = await natsumeAi.GetChatCompletionTextAsync(aiModel, ContactNickname, request);
         await ModifyResponseAsync(m => m.WithContent(response));
     }
 
-    protected async Task ExecuteFriendNatsumeReactionsAsync(NatsumeChatModel model, RestMessage message)
+    protected async Task ExecuteFriendNatsumeReactionsAsync(TextModel aiModel, RestMessage message)
     {
         await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral));
 
         List<string> discordReactions = [];
 
         var reactions = await natsumeAi.GetFriendChatCompletionReactionsAsync(
-            model: model,
+            aiModel: aiModel,
             contactId: Context.User.Id,
             contactNickname: ContactNickname,
             messageContent: message.Content
@@ -57,12 +59,12 @@ public class NatsumeAiCommandModule(NatsumeAi natsumeAi) : ApplicationCommandMod
         await ModifyResponseAsync(m => m.WithContent(string.Concat(discordReactions)));
     }
 
-    protected async Task ExecuteFriendNatsumeCommandAsync(NatsumeChatModel model, string request)
+    protected async Task ExecuteFriendNatsumeCommandAsync(TextModel aiModel, string request)
     {
         await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral));
 
         var completionText = await natsumeAi.GetFriendChatCompletionTextAsync(
-            model,
+            aiModel,
             Context.User.Id,
             ContactNickname,
             request
@@ -71,7 +73,7 @@ public class NatsumeAiCommandModule(NatsumeAi natsumeAi) : ApplicationCommandMod
         await ModifyResponseAsync(m => m.WithContent(completionText));
     }
 
-    protected async Task ExecuteFriendNatsumeCommandAsync(NatsumeImageModel model, string imageDescription)
+    protected async Task ExecuteFriendNatsumeCommandAsync(ImageModel model, string imageDescription)
     {
         await RespondAsync(InteractionCallback.DeferredMessage());
 

@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using Natsume.Database.Entities;
+using Natsume.Persistence.Contact;
+using Natsume.Persistence.Meeting;
+using Natsume.Persistence.Reminder;
 
-namespace Natsume.Database;
+namespace Natsume.Persistence;
 
 public class NatsumeDbContext(DbContextOptions<NatsumeDbContext> options) : DbContext(options)
 {

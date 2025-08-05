@@ -1,4 +1,4 @@
-namespace Natsume.Database.Entities;
+namespace Natsume.Persistence.Meeting;
 
 public class NatsumeMeeting
 {

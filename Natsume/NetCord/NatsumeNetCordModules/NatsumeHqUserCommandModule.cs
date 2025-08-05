@@ -1,5 +1,6 @@
-using Natsume.Database.Services;
-using Natsume.NetCord.NatsumeAI;
+using Natsume.NatsumeIntelligence;
+using Natsume.NatsumeIntelligence.TextGeneration;
+using Natsume.Persistence.Contact;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
@@ -63,7 +64,7 @@ public class NatsumeHqUserCommandModule(
              """;
 
         var welcome = await _natsumeAi.GetChatCompletionTextAsync(
-            NatsumeChatModel.Gpt4O,
+            TextModel.Gpt41,
             ContactNickname,
             welcomePrompt
         );
@@ -139,7 +140,7 @@ public class NatsumeHqUserCommandModule(
              """;
 
         var welcomeBack = await _natsumeAi.GetChatCompletionTextAsync(
-            NatsumeChatModel.Gpt4O,
+            TextModel.Gpt41,
             ContactNickname,
             welcomeBackPrompt
         );
@@ -211,7 +212,7 @@ public class NatsumeHqUserCommandModule(
              """;
 
         var goodbye = await _natsumeAi.GetChatCompletionTextAsync(
-            NatsumeChatModel.Gpt4O,
+            TextModel.Gpt41,
             ContactNickname,
             goodbyePrompt
         );

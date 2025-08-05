@@ -1,5 +1,4 @@
-using Natsume.NetCord.NatsumeAI;
-using Natsume.Services;
+using Natsume.NatsumeIntelligence;
 using NetCord;
 using NetCord.Gateway;
 

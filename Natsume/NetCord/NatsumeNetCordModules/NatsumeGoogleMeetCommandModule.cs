@@ -1,13 +1,12 @@
 using System.Text;
-using Natsume.Database.Entities;
-using Natsume.Services;
+using Natsume.Persistence.Meeting;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
 namespace Natsume.NetCord.NatsumeNetCordModules;
 
-internal class NatsumeGoogleMeetCommandModule(NatsumeDbService natsumeDbService)
+internal class NatsumeGoogleMeetCommandModule(NatsumeMeetingService natsumeMeetingService)
     : ApplicationCommandModule<ApplicationCommandContext>
 {
     [
@@ -39,7 +38,7 @@ internal class NatsumeGoogleMeetCommandModule(NatsumeDbService natsumeDbService)
         {
             if (isRandomMeeting)
             {
-                var meetingCount = await natsumeDbService.GetMeetingCountAsync();
+                var meetingCount = await natsumeMeetingService.CountMeetingsAsNoTrackingAsync();
                 sanitizedMeetingName = $"random-meeting-numero-{meetingCount + 1}";
             }
         }
@@ -57,7 +56,7 @@ internal class NatsumeGoogleMeetCommandModule(NatsumeDbService natsumeDbService)
             isRandomMeeting: isRandomMeeting
         );
         
-        await natsumeDbService.AddMeetingAsync(meeting: newMeeting);
+        await natsumeMeetingService.AddMeetingAsync(meeting: newMeeting);
     }
 
     private static string SanitizeMeetingName(string meetingName)

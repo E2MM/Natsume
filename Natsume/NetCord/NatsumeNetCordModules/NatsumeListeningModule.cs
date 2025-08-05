@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
-using Natsume.NetCord.NatsumeAI;
+using Natsume.NatsumeIntelligence;
+using Natsume.NatsumeIntelligence.TextGeneration;
 using Natsume.OpenAI;
 using NetCord;
 using NetCord.Gateway;
@@ -77,7 +78,7 @@ public class NatsumeListeningModule(
     {
         List<(ChatMessageType type, string content)> chatMessages =
         [
-            (ChatMessageType.System, NatsumeAi.SystemPrompt(context.ContactName))
+            (ChatMessageType.System, NatsumeAi.SystemPrompt)
         ];
 
         chatMessages.AddRange(messages.Select(m => GetChatMessage(context, m)));
@@ -92,7 +93,7 @@ public class NatsumeListeningModule(
 
         var completion =
             await context.NatsumeAi.GetFriendChatCompletionAsync(
-                NatsumeChatModel.Gpt4O,
+                TextModel.Gpt41,
                 context.Message.Author.Id,
                 context.ContactName,
                 openAiChatMessages);
@@ -120,7 +121,7 @@ public class NatsumeListeningModule(
         {
             var reaction = await context.NatsumeAi
                 .GetFriendChatCompletionReactionsAsync(
-                    model: NatsumeChatModel.Gpt4O,
+                    aiModel: TextModel.Gpt41,
                     contactId: context.Message.Author.Id,
                     contactNickname: context.ContactName,
                     messageContent: context.Message.Content
@@ -132,7 +133,7 @@ public class NatsumeListeningModule(
         {
             var reaction = await context.NatsumeAi
                 .GetChatCompletionReactionsAsync(
-                    model: NatsumeChatModel.Gpt4O,
+                    aiModel: TextModel.Gpt41,
                     messageContent: context.Message.Content
                 );
 
@@ -202,7 +203,7 @@ public class NatsumeListeningModule(
         {
             try
             {
-                await Task.Delay(Random.Shared.Next(500, 5000));
+                await Task.Delay(Random.Shared.Next(1500, 5000));
                 await context.Message.AddReactionAsync(new ReactionEmojiProperties(discordReaction));
             }
             catch
@@ -214,7 +215,26 @@ public class NatsumeListeningModule(
 
     private static async Task NatsumeReplies(NatsumeListeningContext context, string completion)
     {
-        await context.Message.ReplyAsync(new ReplyMessageProperties().WithContent(completion));
+        var split = completion.Split("//---DISCORD-SPLIT-MARKER---//");
+        
+        foreach (var part in split)
+        {
+            if (part.Length >= 2000)
+            {
+                var partSplits = part.Split('\n');
+                var middle = partSplits.Length / 2;
+                var firstPart = string.Join('\n', partSplits.Take(middle));
+                var secondPart = string.Join('\n', partSplits.Skip(middle));
+                await context.Message.ReplyAsync(new ReplyMessageProperties().WithContent(firstPart));
+                await Task.Delay(Random.Shared.Next(1000, 3000));
+                await context.Message.ReplyAsync(new ReplyMessageProperties().WithContent(secondPart));
+            }
+            else if (string.IsNullOrWhiteSpace(part) is false)
+            {
+                await context.Message.ReplyAsync(new ReplyMessageProperties().WithContent(part));
+                await Task.Delay(Random.Shared.Next(1000, 3000));
+            }
+        }
     }
 
     public async ValueTask HandleAsync(Message message)
@@ -225,8 +245,11 @@ public class NatsumeListeningModule(
             var natsumeAi = scope.ServiceProvider.GetRequiredService<NatsumeAi>();
             var context = new NatsumeListeningContext(natsumeAi, message, await client.GetCurrentUserAsync());
 
-            await NatsumeMightReact(context);
-            await NatsumeMightReply(context);
+            var reactions = NatsumeMightReact(context);
+            var replies = NatsumeMightReply(context);
+
+            await reactions;
+            await replies;
         }
         catch (Exception e)
         {

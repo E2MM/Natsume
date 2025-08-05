@@ -1,5 +1,5 @@
 using System.Text;
-using Natsume.Database.Services;
+using Natsume.Persistence.Contact;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;

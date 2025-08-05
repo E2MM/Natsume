@@ -1,4 +1,4 @@
-namespace Natsume.Database.Entities;
+namespace Natsume.Persistence.Reminder;
 
 public class NatsumeReminder
 {
@@ -9,7 +9,7 @@ public class NatsumeReminder
     public DateTime RemindMeAt { get; private set; }
     public string ReminderText { get; private set; } = string.Empty;
 
-    NatsumeReminder()
+    private NatsumeReminder()
     {
     }
 

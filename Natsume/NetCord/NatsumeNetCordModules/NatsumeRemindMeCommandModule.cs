@@ -1,25 +1,26 @@
 using System.ComponentModel.DataAnnotations;
-using Natsume.Database.Entities;
-using Natsume.Services;
+using Natsume.Persistence.Reminder;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
 namespace Natsume.NetCord.NatsumeNetCordModules;
 
-internal class NatsumeRemindMeCommandModule(NatsumeDbService natsumeDbService)
+internal class NatsumeRemindMeCommandModule(NatsumeReminderService natsumeDbService)
     : ApplicationCommandModule<ApplicationCommandContext>
 {
-    [SlashCommand(
-        name: "remindme",
-        description: "Ricordami qualcosa fra un po' di tempo!",
-        Contexts =
-        [
-            InteractionContextType.Guild,
-            InteractionContextType.BotDMChannel,
-            InteractionContextType.DMChannel
-        ]
-    )]
+    [
+        SlashCommand(
+            name: "remindme",
+            description: "Ricordami qualcosa fra un po' di tempo!",
+            Contexts =
+            [
+                InteractionContextType.Guild,
+                InteractionContextType.BotDMChannel,
+                InteractionContextType.DMChannel
+            ]
+        )
+    ]
     public async Task RemindMe(
         [SlashCommandParameter(Name = "promemoria", Description = "testo del promemoria"), MaxLength(512)]
         string reminderText = "",
@@ -31,6 +32,8 @@ internal class NatsumeRemindMeCommandModule(NatsumeDbService natsumeDbService)
         int minutes = 1
     )
     {
+        var cts = new CancellationTokenSource(delay: TimeSpan.FromSeconds(10));
+
         var remindMeAt = DateTime.Now
             .AddDays(days)
             .AddHours(hours)
@@ -39,11 +42,14 @@ internal class NatsumeRemindMeCommandModule(NatsumeDbService natsumeDbService)
         var reminderAnchorMessageContent = new InteractionMessageProperties()
             .WithContent($"Ok, ti manderò un reminder il {remindMeAt:dd/MM/yyyy} alle {remindMeAt:HH:mm}!");
 
-        await RespondAsync(InteractionCallback.Message(reminderAnchorMessageContent));
+        await RespondAsync(
+            callback: InteractionCallback.Message(reminderAnchorMessageContent),
+            cancellationToken: cts.Token
+        );
 
-        var reminderAnchorMessage = await Context.Interaction.GetResponseAsync();
+        var reminderAnchorMessage = await Context.Interaction.GetResponseAsync(cancellationToken: cts.Token);
 
-        NatsumeReminder reminder = new(
+        var reminder = new NatsumeReminder(
             discordChannelId: Context.Channel.Id,
             discordMessageId: reminderAnchorMessage.Id,
             discordUserId: Context.User.Id,
@@ -51,6 +57,6 @@ internal class NatsumeRemindMeCommandModule(NatsumeDbService natsumeDbService)
             reminderText: reminderText
         );
 
-        await natsumeDbService.AddNatsumeReminder(reminder);
+        await natsumeDbService.AddNatsumeReminderAsync(reminder, cancellationToken: cts.Token);
     }
 }

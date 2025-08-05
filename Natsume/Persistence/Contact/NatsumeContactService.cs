@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using Natsume.Database.Entities;
 
-namespace Natsume.Database.Services;
+namespace Natsume.Persistence.Contact;
 
 public class NatsumeContactService(NatsumeDbContext context)
 {
@@ -40,7 +39,7 @@ public class NatsumeContactService(NatsumeDbContext context)
         }
 
         context.Contacts.Add(newContact);
-        _ = context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
         return newContact;
     }
 

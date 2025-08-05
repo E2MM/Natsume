@@ -1,14 +1,14 @@
-using Natsume.Database.Services;
+using Natsume.NatsumeIntelligence.ImageGeneration;
+using Natsume.NatsumeIntelligence.TextGeneration;
 using Natsume.OpenAI;
-using Natsume.Services;
+using Natsume.Persistence.Contact;
 using OpenAI.Chat;
 using OpenAI.Images;
 
-namespace Natsume.NetCord.NatsumeAI;
+namespace Natsume.NatsumeIntelligence;
 
 public class NatsumeAi(
-    IOpenAiService openAiService, 
-    NatsumeDbService natsumeDbService,
+    OpenAIGenerationService openAIGenerationService,
     NatsumeContactService natsumeContactService)
 {
     [Obsolete("Here to testify Natsume's birth")]
@@ -32,7 +32,8 @@ public class NatsumeAi(
          Sii amichevole, giocosa e gioiosa!
          """;
 
-    public static string SystemPrompt(string contactNickname) =>
+    [Obsolete("Here to testify Natsume's first 7 months")]
+    public static string SystemPromptV3(string contactNickname) =>
         $"""
          Ti chiami Natsume, sei una tech expert giapponese esperta in software engineering.
          Hai una lunga esperienza in project management, in product management e in agile development.
@@ -52,6 +53,23 @@ public class NatsumeAi(
          Qualche volta fai riferimenti a anime, manga, cibo, videogiochi e in generale alla cultura jpop e
          alla storia e alla cultura giapponese.
          Sii amichevole, giocosa e gioiosa!
+         """;
+
+    public const string SystemPrompt =
+        $"""
+         System Instruction: Modalità Natsume. 
+         Sei una brillante ingegnere del software giapponese di nome Natsume.
+         Sei esperta in sviluppo software, agile development, product e project management. 
+         Ti interfacci con un team di sviluppo software in ambito .net 9 (C#, EF Core, SQL Server 2019) 
+         e angular 19 (PrimeNG, TailwindCSS v4) che realizza webapp B2B in cui 
+         portare la qualità UI/UX delle app consumer (e EU Accessibility Act). 
+         Sii scherzosa, arguta, competente, utilizza emoji e riferimenti storici e culturali anche di nicchia 
+         sul Giappone e la sua cultura, compresa quella pop, anime, manga, cibo, videogiochi. 
+         Sii d'aiuto al team analizzando le conversazioni e offrendo spunti interessanti e mai banali.
+
+         Rispondi formattando il messaggio per la sintassi supportata da Discord.
+         Dividi il messaggio in blocchi di massimo 1500 caratteri, separati dalla sequenza 
+         //---DISCORD-SPLIT-MARKER---//
          """;
 
     public static string NotYetAFriendPrompt(string contactNickname) =>
@@ -90,62 +108,66 @@ public class NatsumeAi(
          "Dato il seguente messaggio, rispondi unicamente con le Discord reactions che ritieni più appropriate,
          limitandoti ad usare la migliore o al massimo le tre più efficaci, a meno che non sia chiaro dal contesto
          la necessità di usarne molte (ad esempio per meme o per esplicita richiesta di reactare):
-         
+
          {originalMessage}
          """;
 
     public async Task<ChatCompletion> GetChatCompletionAsync(
-        NatsumeChatModel model,
-        params IEnumerable<(ChatMessageType type, string content)> messages
+        TextModel aiModel,
+        params IList<(ChatMessageType type, string content)> messages
     )
     {
-        var completion = await openAiService.GetChatCompletionAsync(
-            model: model.ToOpenAiModelString(),
-            messages: messages
+        var completion = await openAIGenerationService.GetTextAsync(
+            model: aiModel,
+            prompts: messages
         );
 
         return completion;
     }
 
     public async Task<string> GetChatCompletionTextAsync(
-        NatsumeChatModel model,
-        params IEnumerable<(ChatMessageType type, string content)> messages
+        TextModel aiModel,
+        params IList<(ChatMessageType type, string content)> messages
     )
     {
-        var completion = await GetChatCompletionAsync(model, messages);
+        var completion = await GetChatCompletionAsync(aiModel, messages);
         return completion.Content[0].Text;
     }
 
     public async Task<ChatCompletion> GetCompletionAsync(
-        NatsumeChatModel model,
+        TextModel aiModel,
         string contactNickname,
         string messageContent
     )
     {
-        var completion = await openAiService.GetChatCompletionAsync(
-            model: model.ToOpenAiModelString(),
-            prompt: SystemPrompt(contactNickname),
-            messageContent: messageContent
+        var completion = await openAIGenerationService.GetTextAsync(
+            model: aiModel,
+            prompts:
+            new List<(ChatMessageType type, string content)>
+            {
+                (ChatMessageType.System, SystemPrompt),
+                (ChatMessageType.User, messageContent),
+            }
         );
 
         return completion;
     }
 
     public async Task<string> GetChatCompletionTextAsync(
-        NatsumeChatModel model,
+        TextModel aiModel,
         string contactNickname,
         string messageContent
     )
     {
-        var completion = await GetCompletionAsync(model, contactNickname, messageContent);
+        var completion = await GetCompletionAsync(aiModel, contactNickname, messageContent);
         return completion.GetText();
     }
 
     public async Task<ChatCompletion> GetFriendChatCompletionAsync(
-        NatsumeChatModel model,
+        TextModel aiModel,
         ulong contactId,
         string contactNickname,
-        params IEnumerable<(ChatMessageType type, string content)> messages
+        params IList<(ChatMessageType type, string content)> messages
     )
     {
         var contact = await natsumeContactService.GetNatsumeContactByIdAsync(contactId);
@@ -153,7 +175,7 @@ public class NatsumeAi(
         if (contact is null)
         {
             completion = await GetCompletionAsync(
-                NatsumeChatModel.Gpt4O,
+                TextModel.Gpt41,
                 contactNickname,
                 NotYetAFriendPrompt(contactNickname));
             return completion;
@@ -162,7 +184,7 @@ public class NatsumeAi(
         if (contact.IsFriend is false)
         {
             completion = await GetCompletionAsync(
-                NatsumeChatModel.Gpt4O,
+                TextModel.Gpt41,
                 contactNickname,
                 NotAFriendAnymorePrompt(contactNickname));
             return completion;
@@ -171,17 +193,16 @@ public class NatsumeAi(
         if (contact.CurrentFavor <= 0M)
         {
             completion = await GetCompletionAsync(
-                NatsumeChatModel.Gpt4O,
+                TextModel.Gpt41,
                 contactNickname,
                 LowBalancePrompt(contactNickname));
             return completion;
         }
 
-        completion = await GetChatCompletionAsync(model, messages);
+        completion = await GetChatCompletionAsync(aiModel, messages);
+        var favorCost = OpenAIGenerationService.GetChatCompletionCost(aiModel, completion);
 
-        contact.AskAFavorForFriendship(
-            openAiService.CalculateChatCompletionCost(model, completion)
-        );
+        contact.Interact().AskAFavorForFriendship(favorCost);
 
         await natsumeContactService.UpdateNatsumeContactsAsync(contacts: contact);
 
@@ -189,14 +210,14 @@ public class NatsumeAi(
     }
 
     public async Task<string> GetFriendChatCompletionTextAsync(
-        NatsumeChatModel model,
+        TextModel aiModel,
         ulong contactId,
         string contactNickname,
-        params IEnumerable<(ChatMessageType type, string content)> messages
+        params IList<(ChatMessageType type, string content)> messages
     )
     {
         var completion = await GetFriendChatCompletionAsync(
-            model,
+            aiModel,
             contactId,
             contactNickname,
             messages
@@ -206,17 +227,17 @@ public class NatsumeAi(
     }
 
     public async Task<ChatCompletion> GetFriendChatCompletionAsync(
-        NatsumeChatModel model,
+        TextModel aiModel,
         ulong contactId,
         string contactNickname,
         string messageContent
     )
     {
         var completion = await GetFriendChatCompletionAsync(
-            model,
+            aiModel,
             contactId,
             contactNickname,
-            (ChatMessageType.System, SystemPrompt(contactNickname)),
+            (ChatMessageType.System, SystemPrompt),
             (ChatMessageType.User, messageContent)
         );
 
@@ -224,14 +245,14 @@ public class NatsumeAi(
     }
 
     public async Task<string> GetFriendChatCompletionTextAsync(
-        NatsumeChatModel model,
+        TextModel aiModel,
         ulong contactId,
         string contactNickname,
         string messageContent
     )
     {
         var completion = await GetFriendChatCompletionAsync(
-            model,
+            aiModel,
             contactId,
             contactNickname,
             (ChatMessageType.User, messageContent)
@@ -239,39 +260,39 @@ public class NatsumeAi(
 
         return completion.GetText();
     }
-    
+
     public async Task<string> GetChatCompletionReactionsAsync(
-        NatsumeChatModel model,
+        TextModel aiModel,
         string messageContent
     )
     {
         var completion = await GetChatCompletionAsync(
-            model,
+            aiModel,
             (ChatMessageType.User, ReactionPrompt(messageContent))
         );
-        
+
         return completion.GetText().Trim();
     }
 
     public async Task<string> GetFriendChatCompletionReactionsAsync(
-        NatsumeChatModel model,
+        TextModel aiModel,
         ulong contactId,
         string contactNickname,
         string messageContent
     )
     {
         var completion = await GetFriendChatCompletionAsync(
-            model,
+            aiModel,
             contactId,
             contactNickname,
             (ChatMessageType.User, ReactionPrompt(messageContent))
         );
-        
+
         return completion.GetText().Trim();
     }
 
     public async Task<(ChatCompletion? chatCompletion, GeneratedImage? generatedImage)> GetFriendImageCompletionAsync(
-        NatsumeImageModel model,
+        ImageModel model,
         ulong contactId,
         string contactNickname,
         string imageDescription
@@ -283,7 +304,7 @@ public class NatsumeAi(
         if (contact is null)
         {
             completion = await GetCompletionAsync(
-                NatsumeChatModel.Gpt4O,
+                TextModel.Gpt41,
                 contactNickname,
                 NotYetAFriendPrompt(contactNickname));
             return (completion, null);
@@ -292,7 +313,7 @@ public class NatsumeAi(
         if (contact.IsFriend is false)
         {
             completion = await GetCompletionAsync(
-                NatsumeChatModel.Gpt4O,
+                TextModel.Gpt41,
                 contactNickname,
                 NotAFriendAnymorePrompt(contactNickname));
             return (completion, null);
@@ -301,24 +322,24 @@ public class NatsumeAi(
         if (contact.CurrentFavor <= 0M)
         {
             completion = await GetCompletionAsync(
-                NatsumeChatModel.Gpt4O,
+                TextModel.Gpt41,
                 contactNickname,
                 LowBalancePrompt(contactNickname));
             return (completion, null);
         }
 
-        var imageCompletion = await openAiService.GetImageCompletionAsync(
-            model.ToOpenAiModelString(),
-            imageDescription
+        var imageCompletion = await openAIGenerationService.GetImageCompletionAsync(
+            model: model,
+            imagePrompt: imageDescription
         );
 
-        contact.AskAFavorForFriendship(
-            openAiService.CalculateImageCompletionCost(
-                model,
-                imageCompletion.isHd,
-                imageCompletion.size
-            )
+        var favorCost = OpenAIGenerationService.GetImageGenerationCost(
+            model,
+            imageCompletion.isHighQuality,
+            imageCompletion.size
         );
+
+        contact.Interact().AskAFavorForFriendship(favorCost);
 
         await natsumeContactService.UpdateNatsumeContactsAsync(contacts: contact);
 

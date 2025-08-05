@@ -1,4 +1,6 @@
-using Natsume.NetCord.NatsumeAI;
+using Natsume.NatsumeIntelligence;
+using Natsume.NatsumeIntelligence.ImageGeneration;
+using Natsume.NatsumeIntelligence.TextGeneration;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 
@@ -11,13 +13,13 @@ internal class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModul
         [SlashCommandParameter(Name = "messaggio", Description = "Scrivi il tuo messaggio a Natsume-san")]
         string message)
     {
-        await ExecuteFriendNatsumeCommandAsync(NatsumeChatModel.Gpt4O, message);
+        await ExecuteFriendNatsumeCommandAsync(TextModel.Gpt41, message);
     }
 
     [SlashCommand(name: "aiutami", description: "Chiedi l'esperta consulenza tecnica di Natsume-san!")]
     public async Task HelpMeAsync(
         [SlashCommandParameter(Name = "llm", Description = "Scegli il modello LLM da usare")]
-        NatsumeChatModel model,
+        TextModel aiModel,
         [SlashCommandParameter(Name = "richiesta", Description = "Scrivi la tua richiesta per Natsume-san")]
         string request)
     {
@@ -27,7 +29,7 @@ internal class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModul
              {request}
              """;
 
-        await ExecuteFriendNatsumeCommandAsync(model, messageContent);
+        await ExecuteFriendNatsumeCommandAsync(aiModel, messageContent);
     }
 
     [MessageCommand(name: "Natsume-san, non ho capito!")]
@@ -39,7 +41,7 @@ internal class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModul
              {restMessage.Content}
              """;
 
-        await ExecuteFriendNatsumeCommandAsync(NatsumeChatModel.Gpt4O, messageContent);
+        await ExecuteFriendNatsumeCommandAsync(TextModel.Gpt41, messageContent);
     }
 
     [MessageCommand(name: "Natsume-san, cosa ne pensi?")]
@@ -51,7 +53,7 @@ internal class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModul
              {restMessage.Content}
              """;
 
-        await ExecuteFriendNatsumeCommandAsync(NatsumeChatModel.Gpt4O, messageContent);
+        await ExecuteFriendNatsumeCommandAsync(TextModel.Gpt41, messageContent);
     }
 
     [SlashCommand(name: "image", description: "genera una immagine AI")]
@@ -60,13 +62,13 @@ internal class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModul
             Description = "Scrivi a Natsume-san il contenuto dell'immagine che vorresti generare")]
         string imageDescription)
     {
-        await ExecuteFriendNatsumeCommandAsync(NatsumeImageModel.Dalle3, imageDescription);
+        await ExecuteFriendNatsumeCommandAsync(ImageModel.GptImage1, imageDescription);
     }
 
     [MessageCommand(name: "Natsume-san, reacta!")]
     public async Task ReactAsync(RestMessage restMessage)
     {
-        await ExecuteFriendNatsumeReactionsAsync(NatsumeChatModel.Gpt4O, restMessage);
+        await ExecuteFriendNatsumeReactionsAsync(TextModel.Gpt41, restMessage);
     }
 
     [MessageCommand(name: "Natsume-san, ELI5")]
@@ -81,7 +83,7 @@ internal class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModul
              {restMessage.Content}
              """;
         
-        await ExecuteFriendNatsumeCommandAsync(NatsumeChatModel.Gpt4O, messageContent);
+        await ExecuteFriendNatsumeCommandAsync(TextModel.Gpt41, messageContent);
     }
 
     [MessageCommand(name: "Natsume-san, riassumi")]
@@ -96,6 +98,6 @@ internal class NatsumeCommandModule(NatsumeAi natsumeAi) : NatsumeAiCommandModul
              {restMessage.Content}
              """;
         
-            await ExecuteFriendNatsumeCommandAsync(NatsumeChatModel.Gpt4O, messageContent);
+            await ExecuteFriendNatsumeCommandAsync(TextModel.Gpt41, messageContent);
     }
 }

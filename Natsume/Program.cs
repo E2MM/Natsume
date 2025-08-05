@@ -1,15 +1,12 @@
 ﻿using Coravel;
-using Coravel.Scheduling.Schedule.Interfaces;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Natsume.Coravel;
-using Natsume.Database;
-using Natsume.NetCord.NatsumeAI;
+using Natsume.NatsumeIntelligence;
 using Natsume.NetCord.NatsumeNetCordModules;
 using Natsume.OpenAI;
-using Natsume.Services;
+using Natsume.Persistence;
 using Natsume.Utils;
 using NetCord;
 using NetCord.Gateway;
@@ -25,8 +22,11 @@ var discordToken = builder.Configuration.GetValueOrThrow("Discord", "Token");
 var openAiApiKey = builder.Configuration.GetValueOrThrow("OpenAI", "ApiKey");
 var sqliteConnection = builder.Configuration.GetValueOrThrow("SQLite", "ConnectionString");
 
-builder.AddDbServices(sqliteConnection);
-builder.AddInvocableServices();
+builder.Services
+    .AddDatabaseServices(sqliteConnection: sqliteConnection)
+    .AddInvocableServices()
+    .AddSingleton<OpenAIClientService>(_ => new OpenAIClientService(apiKey: openAiApiKey))
+    .AddSingleton<OpenAIGenerationService>();
 
 builder.Services
     .AddScheduler()
@@ -41,7 +41,6 @@ builder.Services
     )
     .AddGatewayEventHandler<NatsumeListeningModule>()
     .AddApplicationCommands<ApplicationCommandInteraction, ApplicationCommandContext>()
-    .AddScoped<IOpenAiService, OpenAiService>(_ => new OpenAiService(openAiApiKey))
     .AddScoped<NatsumeAi>();
 
 var host = builder
@@ -54,31 +53,10 @@ var host = builder
     .AddApplicationCommandModule<NatsumeGoogleMeetCommandModule>()
     .AddApplicationCommandModule<NatsumeRemindMeCommandModule>();
 
-UseScheduledInvocableServices();
+host.Services.UseScheduledInvocableServices();
+
 var cts = new CancellationTokenSource();
-await MigrateDatabaseAsync(cts.Token);
+
+await host.Services.MigrateDatabaseAsync(cts.Token);
+
 await host.RunAsync(cts.Token);
-
-return;
-
-async Task MigrateDatabaseAsync(CancellationToken token)
-{
-    using var scope = host.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<NatsumeDbContext>();
-    await db.Database.MigrateAsync(token);
-}
-
-ISchedulerConfiguration UseScheduledInvocableServices()
-{
-    return host.Services.UseScheduler(scheduler =>
-        {
-            scheduler
-                .Schedule<BondUpInvocable>()
-                .Hourly();
-
-            scheduler
-                .Schedule<RemindMeInvocable>()
-                .EveryMinute();
-        }
-    );
-}

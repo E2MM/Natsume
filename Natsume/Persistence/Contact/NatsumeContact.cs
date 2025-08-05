@@ -1,4 +1,4 @@
-namespace Natsume.Database.Entities;
+namespace Natsume.Persistence.Contact;
 
 public class NatsumeContact
 {
@@ -45,12 +45,17 @@ public class NatsumeContact
         return this;
     }
 
+    public NatsumeContact Interact()
+    {
+        LastInteraction = DateTime.Now;
+        TotalInteractions += 1;
+        return this;
+    }
+
     public NatsumeContact AskAFavorForFriendship(decimal favorCost)
     {
         CurrentFavor -= favorCost;
         TotalFavorExpended += favorCost;
-        TotalInteractions += 1;
-        LastInteraction = DateTime.Now;
         return this;
     }
 
