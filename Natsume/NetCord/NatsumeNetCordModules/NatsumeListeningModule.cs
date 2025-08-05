@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Natsume.NatsumeIntelligence;
 using Natsume.NatsumeIntelligence.TextGeneration;
 using Natsume.OpenAI;
+using Natsume.Utils;
 using NetCord;
 using NetCord.Gateway;
 using NetCord.Hosting.Gateway;
@@ -213,27 +214,17 @@ public class NatsumeListeningModule(
         }
     }
 
-    private static async Task NatsumeReplies(NatsumeListeningContext context, string completion)
+    private async Task NatsumeReplies(NatsumeListeningContext context, string completion)
     {
-        var split = completion.Split("//---DISCORD-SPLIT-MARKER---//");
-        
-        foreach (var part in split)
+        await NatsumeStartsTyping(context);
+        var splits = completion.SplitForDiscord();
+        await context.Message.ReplyAsync(new ReplyMessageProperties().WithContent(splits[0]));
+
+        foreach (var split in splits[1..])
         {
-            if (part.Length >= 2000)
-            {
-                var partSplits = part.Split('\n');
-                var middle = partSplits.Length / 2;
-                var firstPart = string.Join('\n', partSplits.Take(middle));
-                var secondPart = string.Join('\n', partSplits.Skip(middle));
-                await context.Message.ReplyAsync(new ReplyMessageProperties().WithContent(firstPart));
-                await Task.Delay(Random.Shared.Next(1000, 3000));
-                await context.Message.ReplyAsync(new ReplyMessageProperties().WithContent(secondPart));
-            }
-            else if (string.IsNullOrWhiteSpace(part) is false)
-            {
-                await context.Message.ReplyAsync(new ReplyMessageProperties().WithContent(part));
-                await Task.Delay(Random.Shared.Next(1000, 3000));
-            }
+            await NatsumeStartsTyping(context);
+            await Task.Delay(Random.Shared.Next(2500, 5000));
+            await context.Message.SendAsync(new MessageProperties().WithContent(split));
         }
     }
 

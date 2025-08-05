@@ -17,6 +17,10 @@ public static class IServiceProviderExtensions
                 scheduler
                     .Schedule<RemindMeInvocable>()
                     .EveryFiveMinutes();
+
+                scheduler
+                    .Schedule<DailyScrumInvocable>()
+                    .DailyAt(hour: 10, minute: 5);
             }
         );
     }

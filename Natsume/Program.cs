@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Natsume.Coravel;
 using Natsume.NatsumeIntelligence;
+using Natsume.NetCord;
 using Natsume.NetCord.NatsumeNetCordModules;
 using Natsume.OpenAI;
 using Natsume.Persistence;
@@ -18,13 +19,17 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.Configuration.AddUserSecrets<Program>();
 
-var discordToken = builder.Configuration.GetValueOrThrow("Discord", "Token");
-var openAiApiKey = builder.Configuration.GetValueOrThrow("OpenAI", "ApiKey");
-var sqliteConnection = builder.Configuration.GetValueOrThrow("SQLite", "ConnectionString");
+var discordToken = builder.Configuration.GetStringValueOrThrow("Discord", "Token");
+var guildId = builder.Configuration.GetUlongValueOrThrow("Discord", "GuildId");
+var generalChannelId = builder.Configuration.GetUlongValueOrThrow("Discord", "GeneralChannelId");
+var openAiApiKey = builder.Configuration.GetStringValueOrThrow("OpenAI", "ApiKey");
+var sqliteConnection = builder.Configuration.GetStringValueOrThrow("SQLite", "ConnectionString");
+
 
 builder.Services
     .AddDatabaseServices(sqliteConnection: sqliteConnection)
     .AddInvocableServices()
+    .AddSingleton<NetCordGuildService>(_ => new NetCordGuildService(guildId: guildId, mainChannelId: generalChannelId))
     .AddSingleton<OpenAIClientService>(_ => new OpenAIClientService(apiKey: openAiApiKey))
     .AddSingleton<OpenAIGenerationService>();
 

@@ -4,7 +4,7 @@ using NetCord.Rest;
 
 namespace Natsume.Coravel.InvocableServices;
 
-public class RemindMeInvocable(NatsumeReminderService natsumeDbService, RestClient client)
+public class RemindMeInvocable(NatsumeReminderService natsumeReminderService, RestClient client)
     : IInvocable, ICancellableInvocable
 {
     public CancellationToken CancellationToken { get; set; }
@@ -15,7 +15,7 @@ public class RemindMeInvocable(NatsumeReminderService natsumeDbService, RestClie
         {
             CancellationToken.ThrowIfCancellationRequested();
             
-            var reminders = await natsumeDbService.GetAllExpiredNatsumeRemindersAsync(
+            var reminders = await natsumeReminderService.GetAllExpiredNatsumeRemindersAsync(
                 cancellationToken: CancellationToken
             );
 
@@ -55,7 +55,7 @@ public class RemindMeInvocable(NatsumeReminderService natsumeDbService, RestClie
                     );
                 }
 
-                await natsumeDbService.RemoveNatsumeReminderAsync(
+                await natsumeReminderService.RemoveNatsumeReminderAsync(
                     reminder: reminder,
                     cancellationToken: CancellationToken
                 );
