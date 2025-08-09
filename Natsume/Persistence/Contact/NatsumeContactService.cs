@@ -4,11 +4,23 @@ namespace Natsume.Persistence.Contact;
 
 public class NatsumeContactService(NatsumeDbContext context)
 {
-    public Task<List<NatsumeContact>> GetAllNatsumeContactsAsync(
+    public Task<List<NatsumeContact>> GetAllNatsumeContactsAsNoTrackingAsync(
         CancellationToken cancellationToken = default
     )
     {
-        return context.Contacts.ToListAsync(cancellationToken);
+        return context.Contacts
+            .AsNoTracking()
+            .OrderByDescending(c => c.MaximumFavor)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<List<NatsumeContact>> GetAllNatsumeFriendsAsync(
+        CancellationToken cancellationToken = default
+    )
+    {
+        return context.Contacts
+            .Where(c => c.IsFriend)
+            .ToListAsync(cancellationToken);
     }
 
     public Task<int> UpdateNatsumeContactsAsync(

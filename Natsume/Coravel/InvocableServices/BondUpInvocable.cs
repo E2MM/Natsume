@@ -13,23 +13,22 @@ public class BondUpInvocable(NatsumeContactService natsumeContactService) : IInv
         {
             CancellationToken.ThrowIfCancellationRequested();
 
-            var contacts = await natsumeContactService.GetAllNatsumeContactsAsync(
+            var friends = await natsumeContactService.GetAllNatsumeFriendsAsync(
                 cancellationToken: CancellationToken
             );
 
-            foreach (var contact in contacts)
+            foreach (var friend in friends)
             {
                 CancellationToken.ThrowIfCancellationRequested();
 
-                if (contact.IsFriend is false) continue;
-                if (contact.CurrentFavor < contact.MaximumFavor)
+                if (friend.CurrentFavor < friend.MaximumFavor)
                 {
-                    contact.BondUp();
+                    friend.BondUp();
                 }
             }
 
             await natsumeContactService.UpdateNatsumeContactsAsync(
-                contacts: contacts,
+                contacts: friends,
                 cancellationToken: CancellationToken
             );
         }

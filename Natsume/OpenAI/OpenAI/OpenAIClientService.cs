@@ -1,10 +1,11 @@
 using Natsume.NatsumeIntelligence.ImageGeneration;
 using Natsume.NatsumeIntelligence.TextGeneration;
+using Natsume.OpenAI.Models;
 using OpenAI;
 using OpenAI.Chat;
 using OpenAI.Images;
 
-namespace Natsume.OpenAI;
+namespace Natsume.OpenAI.Services;
 
 public class OpenAIClientService(string apiKey)
 {
@@ -15,12 +16,12 @@ public class OpenAIClientService(string apiKey)
         return _openAiClient;
     }
 
-    public ChatClient GetChatClient(TextModel model = TextModel.Gpt41)
+    public ChatClient GetChatClient(TextModel model)
     {
         return _openAiClient.GetChatClient(model: model.GetName());
     }
 
-    public ImageClient GetImageClient(ImageModel model = ImageModel.GptImage1)
+    public ImageClient GetImageClient(ImageModel model)
     {
         return _openAiClient.GetImageClient(model: model.GetName());
     }
@@ -30,7 +31,8 @@ public class OpenAIClientService(string apiKey)
     public async Task<(GeneratedImage generatedImage, (int width, int heigth) size, bool isHighQuality)>
         GetImageCompletionAsync(
             ImageModel model,
-            string imageDescription)
+            string imageDescription
+        )
     {
         // TODO: refactorare questa roba
         var client = GetImageClient(model);

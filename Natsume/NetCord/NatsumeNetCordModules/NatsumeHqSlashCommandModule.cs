@@ -21,7 +21,7 @@ public class NatsumeHqSlashCommandModule : ApplicationCommandModule<ApplicationC
             await RespondAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral));
             var sb = new StringBuilder(1024);
 
-            foreach (var c in (await natsumeContactService.GetAllNatsumeContactsAsync()).OrderByDescending(x => x.MaximumFavor))
+            foreach (var c in (await natsumeContactService.GetAllNatsumeContactsAsNoTrackingAsync()))
             {
                 var status = c switch
                 {

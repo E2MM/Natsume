@@ -1,16 +1,17 @@
 using Natsume.NatsumeIntelligence.ImageGeneration;
 using Natsume.NatsumeIntelligence.TextGeneration;
+using Natsume.OpenAI.Models;
 using OpenAI.Chat;
 using OpenAI.Images;
 
-namespace Natsume.OpenAI;
+namespace Natsume.OpenAI.Services;
 
 public class OpenAIGenerationService(OpenAIClientService openAIClientService)
 {
     // TODO: manca supporto dell'sdk alle nuove api "Responses"
 
-    public async Task<ChatCompletion> GetTextAsync(
-        TextModel model = TextModel.Gpt41,
+    public async Task<ChatCompletion> GenerateTextAsync(
+        TextModel model,
         CancellationToken cancellationToken = default,
         params IList<(ChatMessageType type, string content)> prompts
     )
@@ -29,7 +30,7 @@ public class OpenAIGenerationService(OpenAIClientService openAIClientService)
         return completion.Value;
     }
 
-    public static ChatMessage CreateChatMessage((ChatMessageType type, string content) message)
+    private static ChatMessage CreateChatMessage((ChatMessageType type, string content) message)
     {
         ChatMessage chatMessage = message.type switch
         {
@@ -45,21 +46,29 @@ public class OpenAIGenerationService(OpenAIClientService openAIClientService)
         return chatMessage;
     }
 
-    public static decimal GetChatCompletionCost(
+    public static decimal GetTextGenerationCost(
         TextModel model,
         ChatCompletion completion
     )
     {
+        Console.WriteLine($"Total Token Count Usage: {completion.Usage.TotalTokenCount}");
+        Console.WriteLine($"Input Token Count Usage: {completion.Usage.InputTokenCount}");
+        Console.WriteLine($"Output Token Count Usage: {completion.Usage.OutputTokenCount}");
+        Console.WriteLine($"Cached Token Count Usage: {completion.Usage.InputTokenDetails.CachedTokenCount}");
+        
         var tokenCosts = model.GetCost();
+        var totalCost =completion.Usage.InputTokenCount * tokenCosts.InputTextCostPerToken
+                       + completion.Usage.OutputTokenCount * tokenCosts.OutputTextCostPerToken;
+        
+        Console.WriteLine($"Total Cost: ${totalCost:C}");
 
-        return completion.Usage.InputTokenCount * tokenCosts.InputTextCostPerToken
-               + completion.Usage.OutputTokenCount * tokenCosts.OutputTextCostPerToken;
+        return totalCost;
     }
 
     public async Task<(GeneratedImage generatedImage, (int width, int heigth) size, bool isHighQuality)>
-        GetImageCompletionAsync(
+        GenerateImageAsync(
             string imagePrompt,
-            ImageModel model = ImageModel.GptImage1,
+            ImageModel model,
             CancellationToken cancellationToken = default)
     {
         // TODO: refactorare questa roba

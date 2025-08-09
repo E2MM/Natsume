@@ -6,9 +6,9 @@ using Natsume.Persistence.Reminder;
 
 namespace Natsume.Persistence;
 
-public static class IServiceCollectionExtensions
+public static class PersistenceServiceCollectionExtensions
 {
-    public static IServiceCollection AddDatabaseServices(this IServiceCollection services, string sqliteConnection)
+    public static IServiceCollection AddPersistenceServices(this IServiceCollection services, string sqliteConnection)
     {
         return services
             .AddDbContext<NatsumeDbContext>(options => options.UseSqlite(sqliteConnection))

@@ -4,7 +4,7 @@ public static class StringExtensions
 {
     public static List<string> SplitForDiscord(this string text)
     {
-        var splits = text.Split("//---DISCORD-SPLIT-MARKER---//");
+        var splits = text.Split("//-->DISCORD-SPLIT-MARKER<--//");
         var result = new List<string>();
         
         foreach (var split in splits)

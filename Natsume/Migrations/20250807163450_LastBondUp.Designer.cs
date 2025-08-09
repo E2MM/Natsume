@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Natsume.Persistence;
 
@@ -10,9 +11,11 @@ using Natsume.Persistence;
 namespace Natsume.Migrations
 {
     [DbContext(typeof(NatsumeDbContext))]
-    partial class NatsumeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250807163450_LastBondUp")]
+    partial class LastBondUp
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.8");

@@ -1,7 +1,11 @@
 using Coravel.Invocable;
 using Natsume.NatsumeIntelligence;
+using Natsume.NatsumeIntelligence.TextGeneration;
 using Natsume.NetCord;
 using Natsume.OpenAI;
+using Natsume.OpenAI.Models;
+using Natsume.OpenAI.Prompts;
+using Natsume.OpenAI.Services;
 using Natsume.Utils;
 using NetCord.Rest;
 
@@ -16,13 +20,6 @@ public class DailyScrumInvocable(
 {
     public CancellationToken CancellationToken { get; set; }
 
-    private const string DailyPrompt =
-        """
-        Prepara un breve messaggio giornaliero per lanciare l'inizio della giornata di sviluppo 
-        e il Daily Scrum (ricordando cosa fare in modo propositivo), 
-        tenendo in considerazione la data e qualche potenziale anniversario: oggi è 
-        """;
-
     private const string FullDateFormat = "dddd d MMMM yyyy";
 
     public async Task Invoke()
@@ -36,13 +33,14 @@ public class DailyScrumInvocable(
                 cancellationToken: CancellationToken
             );
 
-            var prompt = $"{DailyPrompt} {DateTime.Now.ToString(format: FullDateFormat)}";
+            var prompt = $"{NatsumePrompt.DailyScrum} {DateTime.Now.ToString(format: FullDateFormat)}";
 
-            var completion = await openAIGenerationService.GetTextAsync(
+            var completion = await openAIGenerationService.GenerateTextAsync(
+                model: TextModel.Gpt41,
                 cancellationToken: CancellationToken,
                 prompts:
                 [
-                    (ChatMessageType.System, NatsumeAi.SystemPrompt),
+                    (ChatMessageType.System, NatsumePrompt.SystemChat),
                     (ChatMessageType.User, prompt)
                 ]
             );
@@ -84,6 +82,7 @@ public class DailyScrumInvocable(
                     cancellationToken: CancellationToken
                 );
             }
+            Console.WriteLine(DateTime.Now);
         }
         catch (Exception e)
         {

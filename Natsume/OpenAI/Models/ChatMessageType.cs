@@ -1,4 +1,4 @@
-namespace Natsume.OpenAI;
+namespace Natsume.OpenAI.Models;
 
 public enum ChatMessageType
 {

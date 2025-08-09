@@ -1,28 +1,22 @@
-using Natsume.NatsumeIntelligence;
 using NetCord;
 using NetCord.Gateway;
 
 namespace Natsume.NetCord.NatsumeNetCordModules;
 
-internal class NatsumeListeningContext(NatsumeAi natsumeAi, Message message, User userNatsume)
+public class NatsumeListeningContext(User natsumeDiscordUser, Message message, Channel channel)
 {
     public string ContactName { get; } = message.Author.GetName();
-    public NatsumeAi NatsumeAi { get; } = natsumeAi;
-    public User Natsume { get; } = userNatsume;
+    public User NatsumeDiscordUser { get; } = natsumeDiscordUser;
     public Message Message { get; } = message;
-    
-    public bool IsOwnMessage() => Message.Author == Natsume;
+    public int MessageLength { get; } = message.Content.Length;
+    public bool IsOwnMessage { get; init; } = message.Author == natsumeDiscordUser;
+    public bool IsNatsumeTagged { get; } = message.MentionedUsers.Contains(natsumeDiscordUser);
 
-    public bool IsNatsumeTagged() => Message.MentionedUsers.Contains(Natsume);
-    public bool IsEveryoneTagged() => Message.MentionEveryone;
-    public bool IsDirectMessage() => Message.Channel is DMChannel;
-    
-    public bool IsNatsumeInterested()
-    {
-        if (IsOwnMessage()) return false;
-        if (IsNatsumeTagged()) return true;
-        if (IsEveryoneTagged()) return true;
-        if (IsDirectMessage()) return true;
-        return false;
-    }
+    public bool IsNatsumeExplicitlyTagged { get; } =
+        message.MentionedUsers.Contains(natsumeDiscordUser)
+        && message.ReferencedMessage?.Author != natsumeDiscordUser;
+
+    public bool IsEveryoneTagged { get; } = message.MentionEveryone;
+    public bool IsDirectMessage { get; } = message.Channel is DMChannel;
+    public Channel Channel { get; } = channel;
 }

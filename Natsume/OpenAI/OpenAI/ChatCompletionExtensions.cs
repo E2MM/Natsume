@@ -1,6 +1,6 @@
 using OpenAI.Chat;
 
-namespace Natsume.OpenAI;
+namespace Natsume.OpenAI.Models;
 
 public static class ChatCompletionExtensions
 {

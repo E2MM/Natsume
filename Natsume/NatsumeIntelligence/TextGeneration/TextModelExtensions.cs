@@ -6,6 +6,7 @@ public static class TextModelExtensions
     {
         return model switch
         {
+            TextModel.Gpt5 => TextModelName.Gpt5,
             TextModel.Gpt41 => TextModelName.Gpt41,
             TextModel.O3 => TextModelName.O3,
             _ => throw new ArgumentOutOfRangeException(
@@ -22,6 +23,11 @@ public static class TextModelExtensions
     {
         return model switch
         {
+            TextModel.Gpt5 => new TextModelCost
+            {
+                InputTextCostPerToken = 1.25M / PerMillion,
+                OutputTextCostPerToken = 10M / PerMillion
+            },
             TextModel.Gpt41 => new TextModelCost
             {
                 InputTextCostPerToken = 2M / PerMillion,

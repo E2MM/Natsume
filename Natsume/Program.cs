@@ -1,12 +1,11 @@
-﻿using Coravel;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Natsume.Coravel;
 using Natsume.NatsumeIntelligence;
 using Natsume.NetCord;
 using Natsume.NetCord.NatsumeNetCordModules;
-using Natsume.OpenAI;
+using Natsume.OpenAI.Services;
 using Natsume.Persistence;
 using Natsume.Utils;
 using NetCord;
@@ -25,16 +24,16 @@ var generalChannelId = builder.Configuration.GetUlongValueOrThrow("Discord", "Ge
 var openAiApiKey = builder.Configuration.GetStringValueOrThrow("OpenAI", "ApiKey");
 var sqliteConnection = builder.Configuration.GetStringValueOrThrow("SQLite", "ConnectionString");
 
-
 builder.Services
-    .AddDatabaseServices(sqliteConnection: sqliteConnection)
-    .AddInvocableServices()
+    .AddPersistenceServices(sqliteConnection: sqliteConnection)
+    .AddCoravelInvocableServices()
     .AddSingleton<NetCordGuildService>(_ => new NetCordGuildService(guildId: guildId, mainChannelId: generalChannelId))
     .AddSingleton<OpenAIClientService>(_ => new OpenAIClientService(apiKey: openAiApiKey))
-    .AddSingleton<OpenAIGenerationService>();
+    .AddSingleton<OpenAIGenerationService>()
+    .AddSingleton<NatsumeIntelligenceService>()
+    .AddSingleton(TimeProvider.System);
 
 builder.Services
-    .AddScheduler()
     .AddDiscordGateway(options =>
         {
             options.Token = discordToken;
@@ -45,23 +44,19 @@ builder.Services
         }
     )
     .AddGatewayEventHandler<NatsumeListeningModule>()
-    .AddApplicationCommands<ApplicationCommandInteraction, ApplicationCommandContext>()
-    .AddScoped<NatsumeAi>();
+    .AddApplicationCommands<ApplicationCommandInteraction, ApplicationCommandContext>();
 
 var host = builder
     .Build()
     .UseGatewayEventHandlers()
-    .AddApplicationCommandModule<NatsumeCommandModule>()
+    //.AddApplicationCommandModule<NatsumeCommandModule>()
     .AddApplicationCommandModule<NatsumeHqSlashCommandModule>()
     .AddApplicationCommandModule<NatsumeHqSlashCommandModule.NatsumeContactsModule>()
-    .AddApplicationCommandModule<NatsumeHqUserCommandModule>()
+    //.AddApplicationCommandModule<NatsumeHqUserCommandModule>()
     .AddApplicationCommandModule<NatsumeGoogleMeetCommandModule>()
     .AddApplicationCommandModule<NatsumeRemindMeCommandModule>();
 
-host.Services.UseScheduledInvocableServices();
-
 var cts = new CancellationTokenSource();
-
-await host.Services.MigrateDatabaseAsync(cts.Token);
-
+host.UseCoravelScheduledInvocableServices();
+await host.MigrateDatabaseAsync(cts.Token);
 await host.RunAsync(cts.Token);
