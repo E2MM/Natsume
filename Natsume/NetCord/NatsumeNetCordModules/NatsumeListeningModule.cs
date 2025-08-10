@@ -44,7 +44,21 @@ public class NatsumeListeningModule(
                 cancellationToken: cts.Token
             );
 
-            if (contact is { IsFriend: false } or { CurrentFavor: < 0 }) return;
+            if (contact is { IsFriend: false }) return;
+
+            if (contact is { CurrentFavor: < 0 })
+            {
+                logger.LogWarning("{ContactDiscordNickname}'s CurrentFavor is below 0", contact.DiscordNickname);
+                
+                await message.ReplyAsync(
+                    replyMessage: new ReplyMessageProperties()
+                        .WithContent("Natsume è stanca di rispondere alle tue richieste!")
+                        .WithFlags(MessageFlags.Ephemeral),
+                    cancellationToken: cts.Token
+                );
+                
+                return;
+            }
 
             var natsumeListeningContext = new NatsumeListeningContext(
                 natsumeDiscordUser: await client.GetCurrentUserAsync(cancellationToken: cts.Token),
@@ -190,7 +204,8 @@ public class NatsumeListeningModule(
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error: {message}", e.Message);;
+            logger.LogError(e, "Error: {message}", e.Message);
+            
             return Task.FromException(e);
         }
     }
@@ -238,7 +253,7 @@ public class NatsumeListeningModule(
 
             await foreach (var m in previousMessages)
             {
-                if (totalChars > maxTotalChars) break;
+                if (totalChars > maxTotalChars && discordMessages.Count > 10) break;
 
                 discordMessages.Add(m);
                 totalChars += m.Content.Length;

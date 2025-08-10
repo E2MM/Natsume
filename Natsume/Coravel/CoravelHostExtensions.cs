@@ -16,10 +16,10 @@ public static class CoravelHostExtensions
         void ScheduleInvocableServices(IScheduler scheduler)
         {
             scheduler.Schedule<BondUpInvocable>()
-                .Hourly();
+                .HourlyAt(minute: 05);
 
             scheduler.Schedule<RemindMeInvocable>()
-                .EveryFiveMinutes();
+                .Hourly();
 
             scheduler.Schedule<DailyScrumInvocable>()
                 .Cron("31 10 * * 1-5")

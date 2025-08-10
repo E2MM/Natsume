@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Natsume.Persistence;
 
@@ -10,9 +11,11 @@ using Natsume.Persistence;
 namespace Natsume.Migrations
 {
     [DbContext(typeof(NatsumeDbContext))]
-    partial class NatsumeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250810123445_AddedContactComputedColumns")]
+    partial class AddedContactComputedColumns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.8");
@@ -59,7 +62,7 @@ namespace Natsume.Migrations
                     b.Property<decimal>("MessageFriendship")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("TEXT")
-                        .HasComputedColumnSql("(LN(1 + [TotalInteractions]) * LN(1 + [TotalInteractions]) / 100.0)", false);
+                        .HasComputedColumnSql("(LOG(1 + [TotalInteractions]) * LOG(1 + [TotalInteractions]) / 100.0)", false);
 
                     b.Property<DateTime>("MetOn")
                         .HasColumnType("TEXT");

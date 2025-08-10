@@ -10,6 +10,8 @@
         <UserSecretsId>77669d2c-2bfa-4159-89c2-6279138ca309</UserSecretsId>
         <Title>Natsume</Title>
         <Authors>Matteo Musso</Authors>
+        <SatelliteResourceLanguages>en;it</SatelliteResourceLanguages>
+        <RuntimeIdentifier>osx-arm64</RuntimeIdentifier>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -39,12 +41,6 @@
       <None Update="appsettings.json">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
-    </ItemGroup>
-
-    <ItemGroup>
-      <Compile Update="Program.cs">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </Compile>
     </ItemGroup>
 
 </Project>

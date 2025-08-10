@@ -5,17 +5,17 @@ public class NatsumeContact
     public ulong DiscordId { get; private set; }
     public string DiscordNickname { get; private set; } = string.Empty;
     public bool IsFriend { get; private set; }
-    public decimal CurrentFavor { get; private set; }
+    public decimal Friendship { get; }
     public decimal TimeFriendship { get; private set; }
-    public decimal MessageFriendship => (decimal)Math.Pow(Math.Log(1+TotalInteractions, Math.E), 2) / 100M;
-    public decimal Friendship => 100 * TotalFavorExpended * (1M + TimeFriendship + MessageFriendship);
-    public decimal MaximumFavor => 1M + TimeFriendship + MessageFriendship;
+    public decimal MessageFriendship { get; }
+    public decimal CurrentFavor { get; private set; }
+    public decimal MaximumFavor { get; }
     public decimal TotalFavorExpended { get; private set; }
-    public decimal DailyAverageFavorExpended => TotalFavorExpended / (decimal)(DateTime.Now - MetOn).TotalDays;
-    public DateTime? LastInteraction { get; private set; }
-    public DateTime? LastBondUp { get; private set; }
+    public decimal DailyAverageFavorExpended { get; }
     public ulong TotalInteractions { get; private set; }
+    public DateTime? LastInteraction { get; private set; }
     public DateTime MetOn { get; private set; }
+    public DateTime? LastBondUp { get; private set; }
 
     private NatsumeContact()
     {
@@ -74,9 +74,9 @@ public class NatsumeContact
 
     public NatsumeContact BondUp()
     {
-        var onePerThousandMissing = (MaximumFavor - CurrentFavor) / 1000M;
-        CurrentFavor += onePerThousandMissing;
-        TimeFriendship += 1M / 256M / 256M;
+        var onePercentMissing = (MaximumFavor - CurrentFavor) / 100m;
+        CurrentFavor += 0.33m * onePercentMissing;
+        TimeFriendship += 3 / 65536m;
         LastBondUp = DateTime.Now;
         return this;
     }
