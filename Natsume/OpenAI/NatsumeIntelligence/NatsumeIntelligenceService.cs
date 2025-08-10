@@ -1,16 +1,17 @@
 using System.Globalization;
+using Microsoft.Extensions.Logging;
 using Natsume.NatsumeIntelligence.ImageGeneration;
 using Natsume.NatsumeIntelligence.TextGeneration;
+using Natsume.NetCord.NatsumeNetCordModules;
 using Natsume.OpenAI.Models;
-using Natsume.OpenAI.Prompts;
-using Natsume.OpenAI.Services;
+using Natsume.OpenAI.OpenAI;
 using Natsume.Utils;
-using OpenAI.Chat;
 using OpenAI.Images;
 
-namespace Natsume.NatsumeIntelligence;
+namespace Natsume.OpenAI.NatsumeIntelligence;
 
-public class NatsumeIntelligenceService(OpenAIGenerationService openAIGenerationService, TimeProvider timeProvider)
+public class NatsumeIntelligenceService(OpenAIGenerationService openAIGenerationService, TimeProvider timeProvider,
+        ILogger<NatsumeIntelligenceService> logger)
     //NatsumeContactService natsumeContactService)
 {
     public async Task<(string generatedReply, decimal generationCost)> GenerateNatsumeReplyAsync(
@@ -40,7 +41,7 @@ public class NatsumeIntelligenceService(OpenAIGenerationService openAIGeneration
         params IList<(ChatMessageType type, string content)> messages
     )
     {
-        using var timingScope = new TimingScope(timeProvider, nameof(GenerateNatsumeReplyAsync));
+        using var timedScope = logger.BeginTimedOperationScope(timeProvider, nameof(GenerateNatsumeReplyAsync), 15_000);
         
         //var contact = await natsumeContactService.GetNatsumeContactByIdAsync(contactId);
         //ChatCompletion completion;
@@ -78,7 +79,7 @@ public class NatsumeIntelligenceService(OpenAIGenerationService openAIGeneration
             prompts: messages
         );
 
-        var favorCost = OpenAIGenerationService.GetTextGenerationCost(
+        var favorCost = openAIGenerationService.GetTextGenerationCost(
             model: model,
             completion: completion
         );
@@ -98,7 +99,7 @@ public class NatsumeIntelligenceService(OpenAIGenerationService openAIGeneration
         CancellationToken cancellationToken = default
     )
     {
-        using var timingScope = new TimingScope(timeProvider, nameof(GenerateNatsumeReactionsAsync));
+        using var timedScope = logger.BeginTimedOperationScope(timeProvider, nameof(GenerateNatsumeReactionsAsync), 5_000);
         
         var completion = await openAIGenerationService.GenerateTextAsync(
             model: model,
@@ -110,7 +111,7 @@ public class NatsumeIntelligenceService(OpenAIGenerationService openAIGeneration
             ]
         );
 
-        var favorCost = OpenAIGenerationService.GetTextGenerationCost(
+        var favorCost = openAIGenerationService.GetTextGenerationCost(
             model: model,
             completion: completion
         );

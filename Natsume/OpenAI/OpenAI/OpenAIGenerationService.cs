@@ -1,12 +1,13 @@
+using Microsoft.Extensions.Logging;
 using Natsume.NatsumeIntelligence.ImageGeneration;
 using Natsume.NatsumeIntelligence.TextGeneration;
 using Natsume.OpenAI.Models;
 using OpenAI.Chat;
 using OpenAI.Images;
 
-namespace Natsume.OpenAI.Services;
+namespace Natsume.OpenAI.OpenAI;
 
-public class OpenAIGenerationService(OpenAIClientService openAIClientService)
+public class OpenAIGenerationService(OpenAIClientService openAIClientService, ILogger<OpenAIGenerationService> logger)
 {
     // TODO: manca supporto dell'sdk alle nuove api "Responses"
 
@@ -46,21 +47,21 @@ public class OpenAIGenerationService(OpenAIClientService openAIClientService)
         return chatMessage;
     }
 
-    public static decimal GetTextGenerationCost(
+    public decimal GetTextGenerationCost(
         TextModel model,
         ChatCompletion completion
     )
     {
-        Console.WriteLine($"Total Token Count Usage: {completion.Usage.TotalTokenCount}");
-        Console.WriteLine($"Input Token Count Usage: {completion.Usage.InputTokenCount}");
-        Console.WriteLine($"Output Token Count Usage: {completion.Usage.OutputTokenCount}");
-        Console.WriteLine($"Cached Token Count Usage: {completion.Usage.InputTokenDetails.CachedTokenCount}");
+        logger.LogInformation("Total Token Count Usage: {UsageTotalTokenCount}", completion.Usage.TotalTokenCount);
+        logger.LogInformation("Input Token Count Usage: {UsageInputTokenCount}", completion.Usage.InputTokenCount);
+        logger.LogInformation("Output Token Count Usage: {UsageOutputTokenCount}", completion.Usage.OutputTokenCount);
+        logger.LogInformation("Cached Token Count Usage: {CachedTokenCount}", completion.Usage.InputTokenDetails.CachedTokenCount);
         
         var tokenCosts = model.GetCost();
         var totalCost =completion.Usage.InputTokenCount * tokenCosts.InputTextCostPerToken
                        + completion.Usage.OutputTokenCount * tokenCosts.OutputTextCostPerToken;
         
-        Console.WriteLine($"Total Cost: ${totalCost:C}");
+        logger.LogInformation("Total Cost: {TotalCost}", totalCost);
 
         return totalCost;
     }

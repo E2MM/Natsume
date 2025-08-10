@@ -1,8 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
-using Natsume.NatsumeIntelligence;
-using Natsume.NatsumeIntelligence.TextGeneration;
+using Microsoft.Extensions.Logging;
 using Natsume.OpenAI.Models;
-using Natsume.OpenAI.Prompts;
+using Natsume.OpenAI.NatsumeIntelligence;
 using Natsume.Persistence.Contact;
 using Natsume.Utils;
 using NetCord;
@@ -17,17 +16,22 @@ public class NatsumeListeningModule(
     NatsumeIntelligenceService natsumeIntelligenceService,
     RestClient client,
     IServiceProvider serviceProvider,
-    TimeProvider timeProvider
+    TimeProvider timeProvider,
+    ILogger<NatsumeListeningModule> logger
 ) : IGatewayEventHandler<Message>
 {
-    public async ValueTask HandleAsync(Message message)
+    private static int _interactionId;
+
+    public async ValueTask HandleAsync(Message message) // TODO: cancellation token source missing??
     {
+        using var loggingScope = logger.BeginScope($"📎 #{++_interactionId:D6} ");
+
         try
         {
-            using var timingScope = new TimingScope(timeProvider, nameof(HandleAsync));
+            using var timedScope = logger.BeginTimedOperationScope(timeProvider, nameof(HandleAsync), 60_000);
 
             // TODO: cancellation token source??
-            var cts = new CancellationTokenSource(delay: TimeSpan.FromSeconds(60));
+            var cts = new CancellationTokenSource(delay: TimeSpan.FromSeconds(90));
             using var scope = serviceProvider.CreateScope();
             var natsumeContactService = scope.ServiceProvider.GetRequiredService<NatsumeContactService>();
 
@@ -41,7 +45,6 @@ public class NatsumeListeningModule(
             );
 
             if (contact is { IsFriend: false } or { CurrentFavor: < 0 }) return;
-            //if (contact.IsFriend is false || contact.CurrentFavor < 0) return;
 
             var natsumeListeningContext = new NatsumeListeningContext(
                 natsumeDiscordUser: await client.GetCurrentUserAsync(cancellationToken: cts.Token),
@@ -60,7 +63,7 @@ public class NatsumeListeningModule(
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
+            logger.LogError(e, "Error: {Message}", e.Message);
         }
     }
 
@@ -96,7 +99,7 @@ public class NatsumeListeningModule(
 
     private async Task AddNatsumeReactions(NatsumeListeningContext context, List<string> reactions)
     {
-        using var timingScope = new TimingScope(timeProvider, nameof(AddNatsumeReactions));
+        using var timedScope = logger.BeginTimedOperationScope(timeProvider, nameof(AddNatsumeReactions), 60_000);
 
         foreach (var reaction in reactions)
         {
@@ -107,7 +110,7 @@ public class NatsumeListeningModule(
             }
             catch
             {
-                Console.WriteLine($"Natsume's reaction \"{reaction}\" is not a valid Discord reaction");
+                logger.LogWarning("Natsume's reaction \"{Reaction}\" is not a valid Discord reaction", reaction);
             }
         }
     }
@@ -118,7 +121,7 @@ public class NatsumeListeningModule(
         NatsumeContact contact
     )
     {
-        using var timingScope = new TimingScope(timeProvider, nameof(HandleNatsumeReactions));
+        using var timedScope = logger.BeginTimedOperationScope(timeProvider, nameof(HandleNatsumeReactions), 60_000);
 
         if (IsNatsumeReacting(context))
         {
@@ -147,11 +150,11 @@ public class NatsumeListeningModule(
         NatsumeContact contact
     )
     {
-        using var timingScope = new TimingScope(timeProvider, nameof(HandleNatsumeReply));
+        using var timedScope = logger.BeginTimedOperationScope(timeProvider, nameof(HandleNatsumeReply), 15_000);
 
         if (IsNatsumeReplying(context))
         {
-            using var typingReminder = await NatsumeStartsTyping(context);
+            using var typingReminder = await NatsumeIsTypingScope(context);
 
             var conversationMessages = await FetchAllConversationMessagesAsync(context);
             var openAiChatMessages = GenerateChatMessages(context, conversationMessages);
@@ -170,35 +173,42 @@ public class NatsumeListeningModule(
         }
     }
 
-    private async Task<IDisposable> NatsumeStartsTyping(NatsumeListeningContext context)
+    private async Task<IDisposable> NatsumeIsTypingScope(NatsumeListeningContext context)
     {
-        using var timingScope = new TimingScope(timeProvider, nameof(NatsumeStartsTyping));
+        using var timedScope = logger.BeginTimedOperationScope(
+            timeProvider: timeProvider,
+            operation: nameof(NatsumeIsTypingScope),
+            warningThresholdMilliseconds: 1_000
+        );
 
-        // TODO: rimuovere quando verificato che funziona
-        Console.WriteLine($"'Message.Channel?' is {(context.Message.Channel is null ? "null" : "not null")}");
-        var channel = context.Message.Channel ?? await client.GetChannelAsync(context.Message.ChannelId);
-        // if (channel is TextChannel textChannel) await textChannel.TriggerTypingStateAsync();
-        if (channel is TextChannel textChannel) return await textChannel.EnterTypingStateAsync();
-        return Task.CompletedTask;
+        try
+        {
+            logger.LogInformation("'Message.Channel?' is {NotNull}null", context.Message.Channel is null ? "" : "not ");
+            var channel = context.Message.Channel ?? await client.GetChannelAsync(context.Message.ChannelId);
+            if (channel is TextChannel textChannel) return await textChannel.EnterTypingStateAsync();
+            throw new Exception("Channel is not a text channel");
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error: {message}", e.Message);;
+            return Task.FromException(e);
+        }
     }
-
-    // private bool UserReferencedAMessage() => Message.ReferencedMessage is not null;
-    //
-    // private bool UserReferencedANatsumeMessage() => Message.ReferencedMessage?.Author == Natsume;
 
     private async Task<List<RestMessage>> FetchAllConversationMessagesAsync(NatsumeListeningContext context)
     {
-        using var timingScope = new TimingScope(timeProvider, nameof(FetchAllConversationMessagesAsync));
+        using var timedScope =
+            logger.BeginTimedOperationScope(timeProvider, nameof(FetchAllConversationMessagesAsync), 4_000);
 
         var channel = context.Message.Channel ?? await client.GetChannelAsync(context.Message.ChannelId);
 
         var maxTotalChars = context switch
         {
-            { IsNatsumeExplicitlyTagged: true } or { IsDirectMessage: true } => Math.Min(10_000,
-                context.MessageLength * 5 + 3_000),
-            { IsEveryoneTagged: true } or { IsNatsumeTagged: true } => Math.Min(7_000,
-                context.MessageLength * 5 + 2_000),
-            { IsDirectMessage: false } => Math.Min(3_000, context.MessageLength * 5 + 1_000),
+            { IsNatsumeExplicitlyTagged: true } or { IsDirectMessage: true } => Math.Min(20_000,
+                context.MessageLength * 10 + 4_000),
+            { IsEveryoneTagged: true } or { IsNatsumeTagged: true } => Math.Min(12_500,
+                context.MessageLength * 8 + 2_500),
+            { IsDirectMessage: false } => Math.Min(7_500, context.MessageLength * 5 + 1_500),
         };
 
         var maxTotalMessages = 100;
@@ -216,7 +226,7 @@ public class NatsumeListeningModule(
             totalChars += referencedMessage.Content.Length;
         }
 
-        Console.WriteLine($"Total referenced messages: {discordMessages.Count}");
+        logger.LogInformation("Total referenced messages: {DiscordMessagesCount}", discordMessages.Count);
 
         if (channel is TextChannel textChannel)
         {
@@ -229,13 +239,12 @@ public class NatsumeListeningModule(
             await foreach (var m in previousMessages)
             {
                 if (totalChars > maxTotalChars) break;
-                //if (m.CreatedAt < DateTime.Today) break;
 
                 discordMessages.Add(m);
                 totalChars += m.Content.Length;
             }
 
-            Console.WriteLine($"Total chars: {totalChars}");
+            logger.LogInformation("Total chars: {TotalChars}", totalChars);
         }
 
         var orderedHistory = discordMessages
@@ -243,7 +252,7 @@ public class NatsumeListeningModule(
             .OrderBy(m => m.CreatedAt)
             .ToList();
 
-        Console.WriteLine($"Total messages: {orderedHistory.Count}");
+        logger.LogInformation("Total messages: {OrderedHistoryCount}", orderedHistory.Count);
 
         return orderedHistory;
     }
@@ -253,7 +262,7 @@ public class NatsumeListeningModule(
         RestMessage message
     )
     {
-        using var timingScope = new TimingScope(timeProvider, nameof(GetChatMessage));
+        using var timedScope = logger.BeginTimedOperationScope(timeProvider, nameof(GetChatMessage), 100);
 
         var messageContent = message.Content;
         foreach (var user in message.MentionedUsers)
@@ -282,7 +291,7 @@ public class NatsumeListeningModule(
         List<RestMessage> messages
     )
     {
-        using var timingScope = new TimingScope(timeProvider, nameof(GenerateChatMessages));
+        using var timedScope = logger.BeginTimedOperationScope(timeProvider, nameof(GenerateChatMessages), 1_000);
 
         var prompt = context switch
         {
@@ -300,139 +309,11 @@ public class NatsumeListeningModule(
         return chatMessages;
     }
 
-    // private async Task<string> FetchNatsumeCompletion(NatsumeListeningContext context)
-    // {
-    //     var conversationMessages = await FetchAllConversationMessagesAsync(context);
-    //     var openAiChatMessages = GenerateChatMessages(context, conversationMessages);
-    //
-    //     var completion =
-    //         await context.NatsumeIntelligenceService.GetFriendChatCompletionAsync(
-    //             TextModel.Gpt41,
-    //             context.Message.Author.Id,
-    //             context.ContactName,
-    //             openAiChatMessages);
-    //     //await openAiService.GetChatCompletion(NatsumeLlmModel.Gpt4O.ToGptModelString(), openAiChatMessages);
-    //     return completion.Content[0].Text;
-    //
-    //     // TODO: distinguere se la conversazione è un botta e risposta con Natsume, o è una conversazione tra
-    //     // il dev team, e cambiare il prompt in modo da indicare la conversazione come messaggio singolo
-    //     // con sorgente terze parti
-    //
-    //     //         var referencedMessagePrompt =
-    //     //             $"""
-    //     //                  Natsume-san, in relazione al messaggio che allego sotto, avrei la seguente richiesta:
-    //     //                  {Message.Content}
-    //     //                  Per favore, aiutami!
-    //     //              
-    //     //                  Ecco il messaggio allegato:
-    //     //                  {Message.ReferencedMessage!.Content}
-    //     //              """;
-    // }
-
-    // private async Task<string> GetNatsumeReactions(NatsumeListeningContext context)
-    // {
-    //     if (context.IsNatsumeInterested())
-    //     {
-    //         var reaction = await context.NatsumeIntelligenceService
-    //             .GetFriendChatCompletionReactionsAsync(
-    //                 aiModel: TextModel.Gpt41,
-    //                 contactId: context.Message.Author.Id,
-    //                 contactNickname: context.ContactName,
-    //                 messageContent: context.Message.Content
-    //             );
-    //
-    //         return reaction;
-    //     }
-    //     else
-    //     {
-    //         var reaction = await context.NatsumeIntelligenceService
-    //             .GetChatCompletionReactionsAsync(
-    //                 aiModel: TextModel.Gpt41,
-    //                 messageContent: context.Message.Content
-    //             );
-    //
-    //         return reaction;
-    //     }
-    // }
-
-    // private async Task NatsumeMightReply(NatsumeListeningContext context)
-    // {
-    //     var likelihood = context switch
-    //     {
-    //         _ when context.IsOwnMessage() => 0,
-    //         _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 100 => 0,
-    //         _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 350 => 1,
-    //         _ when context.IsNatsumeInterested() is false => 4,
-    //         _ when context.IsDirectMessage() => 100,
-    //         _ when context.IsEveryoneTagged() && context.Message.Content.Length < 50 => 15,
-    //         _ when context.IsEveryoneTagged() && context.Message.Content.Length < 100 => 35,
-    //         _ when context.IsEveryoneTagged() => 65,
-    //         _ when context.IsNatsumeTagged() => 100,
-    //         _ => 0
-    //     };
-    //
-    //     if (Random.Shared.Next(1, 101) <= likelihood)
-    //     {
-    //         await NatsumeStartsTyping(context);
-    //         var completion = await FetchNatsumeCompletion(context);
-    //         await NatsumeReplies(context, completion);
-    //     }
-    // }
-
-    // private async Task NatsumeMightReact(NatsumeListeningContext context, NatsumeContactService natsumeContactService)
-    // {
-    //     List<string> discordReactions = [];
-    //     var likelihood = context switch
-    //     {
-    //         { IsOwnMessage: true } => -1,
-    //         { IsDirectMessage: true } => context.Message.Content.Length / 500d,
-    //         _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 50 => 0.02,
-    //         _ when context.IsNatsumeInterested() is false && context.Message.Content.Length < 250 => 0.05,
-    //         _ when context.IsNatsumeInterested() is false => 0.25,
-    //         _ when context.IsDirectMessage() && context.Message.Content.Length < 50 => 0.03,
-    //         _ when context.IsDirectMessage() && context.Message.Content.Length < 250 => 0.10,
-    //         _ when context.IsDirectMessage() => 0.30,
-    //         _ when context.IsEveryoneTagged() => 1,
-    //         _ when context.IsNatsumeTagged() => 1,
-    //         _ => 0
-    //     };
-    //
-    //     if (Random.Shared.NextDouble() < likelihood)
-    //     {
-    //         var reactions = await GetNatsumeReactions(context);
-    //
-    //         var enumerator = StringInfo.GetTextElementEnumerator(reactions.Trim());
-    //         while (enumerator.MoveNext())
-    //         {
-    //             var reaction = enumerator.GetTextElement();
-    //             if (reaction.Trim() != string.Empty)
-    //             {
-    //                 discordReactions.Add(enumerator.GetTextElement());
-    //             }
-    //         }
-    //     }
-    //
-    //     discordReactions = discordReactions.Distinct().ToList();
-    //
-    //     foreach (var discordReaction in discordReactions)
-    //     {
-    //         try
-    //         {
-    //             await Task.Delay(Random.Shared.Next(4500, 15000));
-    //             await context.Message.AddReactionAsync(new ReactionEmojiProperties(discordReaction));
-    //         }
-    //         catch
-    //         {
-    //             Console.WriteLine($"Natsume's reaction \"{discordReaction}\" is not a valid Discord reaction");
-    //         }
-    //     }
-    // }
-
     private async Task NatsumeReplies(NatsumeListeningContext context, string completion)
     {
-        using var timingScope = new TimingScope(timeProvider, nameof(NatsumeReplies));
+        using var timedScope = logger.BeginTimedOperationScope(timeProvider, nameof(NatsumeReplies), 30_000);
 
-        using var typingReminder = await NatsumeStartsTyping(context);
+        using var typingReminder = await NatsumeIsTypingScope(context);
         var splits = completion.SplitForDiscord();
         await context.Message.ReplyAsync(new ReplyMessageProperties().WithContent(splits[0]));
 

@@ -5,7 +5,7 @@ using OpenAI;
 using OpenAI.Chat;
 using OpenAI.Images;
 
-namespace Natsume.OpenAI.Services;
+namespace Natsume.OpenAI.OpenAI;
 
 public class OpenAIClientService(string apiKey)
 {

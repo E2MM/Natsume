@@ -4,8 +4,8 @@ using Natsume.NatsumeIntelligence.TextGeneration;
 using Natsume.NetCord;
 using Natsume.OpenAI;
 using Natsume.OpenAI.Models;
-using Natsume.OpenAI.Prompts;
-using Natsume.OpenAI.Services;
+using Natsume.OpenAI.NatsumeIntelligence;
+using Natsume.OpenAI.OpenAI;
 using Natsume.Utils;
 using NetCord.Rest;
 

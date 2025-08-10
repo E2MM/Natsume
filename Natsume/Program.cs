@@ -1,11 +1,13 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Natsume.Coravel;
 using Natsume.NatsumeIntelligence;
 using Natsume.NetCord;
 using Natsume.NetCord.NatsumeNetCordModules;
-using Natsume.OpenAI.Services;
+using Natsume.OpenAI.NatsumeIntelligence;
+using Natsume.OpenAI.OpenAI;
 using Natsume.Persistence;
 using Natsume.Utils;
 using NetCord;
@@ -14,9 +16,11 @@ using NetCord.Hosting.Gateway;
 using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Services.ApplicationCommands;
 
+
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Configuration.AddUserSecrets<Program>();
+
 
 var discordToken = builder.Configuration.GetStringValueOrThrow("Discord", "Token");
 var guildId = builder.Configuration.GetUlongValueOrThrow("Discord", "GuildId");
@@ -56,7 +60,12 @@ var host = builder
     .AddApplicationCommandModule<NatsumeGoogleMeetCommandModule>()
     .AddApplicationCommandModule<NatsumeRemindMeCommandModule>();
 
+var logger = host.Services.GetRequiredService<ILogger<Program>>();
+logger.LogInformation("Natsume is getting ready...");
+
 var cts = new CancellationTokenSource();
 host.UseCoravelScheduledInvocableServices();
 await host.MigrateDatabaseAsync(cts.Token);
+
+logger.LogInformation("Natsume is ready!");
 await host.RunAsync(cts.Token);

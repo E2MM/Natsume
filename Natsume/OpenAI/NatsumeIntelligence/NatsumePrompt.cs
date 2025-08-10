@@ -1,4 +1,4 @@
-namespace Natsume.OpenAI.Prompts;
+namespace Natsume.OpenAI.NatsumeIntelligence;
 
 public static class NatsumePrompt
 {
